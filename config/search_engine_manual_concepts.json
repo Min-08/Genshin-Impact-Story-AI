@@ -1,0 +1,294 @@
+[
+  {
+    "concept_id": "manual:heavenly_principles",
+    "entity_type": "lore_concept",
+    "primary_name": "천리",
+    "aliases": {
+      "ko": [
+        "천리",
+        "천리의 주관자"
+      ],
+      "en": [
+        "Heavenly Principles",
+        "Sustainer of Heavenly Principles"
+      ],
+      "ja": [
+        "天理",
+        "天理の調停者"
+      ],
+      "zh-Hans": [
+        "天理",
+        "天理的维系者"
+      ]
+    },
+    "related": [
+      "셀레스티아",
+      "낯선 신",
+      "강림자"
+    ],
+    "confidence": "manual_seed"
+  },
+  {
+    "concept_id": "manual:khaenriah",
+    "entity_type": "nation",
+    "primary_name": "켄리아",
+    "aliases": {
+      "ko": [
+        "켄리아"
+      ],
+      "en": [
+        "Khaenri'ah",
+        "Khaenriah"
+      ],
+      "ja": [
+        "カーンルイア"
+      ],
+      "zh-Hans": [
+        "坎瑞亚"
+      ]
+    },
+    "related": [
+      "대재앙",
+      "심연",
+      "불사의 저주"
+    ],
+    "confidence": "manual_seed"
+  },
+  {
+    "concept_id": "manual:abyss",
+    "entity_type": "lore_concept",
+    "primary_name": "심연",
+    "aliases": {
+      "ko": [
+        "심연",
+        "심연 교단"
+      ],
+      "en": [
+        "Abyss",
+        "Abyss Order"
+      ],
+      "ja": [
+        "アビス",
+        "アビス教団"
+      ],
+      "zh-Hans": [
+        "深渊",
+        "深渊教团"
+      ]
+    },
+    "related": [
+      "켄리아",
+      "심연 메이지"
+    ],
+    "confidence": "manual_seed"
+  },
+  {
+    "concept_id": "manual:celestia",
+    "entity_type": "lore_concept",
+    "primary_name": "셀레스티아",
+    "aliases": {
+      "ko": [
+        "셀레스티아"
+      ],
+      "en": [
+        "Celestia"
+      ],
+      "ja": [
+        "セレスティア"
+      ],
+      "zh-Hans": [
+        "天空岛"
+      ]
+    },
+    "related": [
+      "천리",
+      "신좌"
+    ],
+    "confidence": "manual_seed"
+  },
+  {
+    "concept_id": "manual:phanes",
+    "entity_type": "lore_concept",
+    "primary_name": "파네스",
+    "aliases": {
+      "ko": [
+        "파네스",
+        "원초의 그분"
+      ],
+      "en": [
+        "Phanes",
+        "Primordial One"
+      ],
+      "ja": [
+        "パネース",
+        "原初のあの方"
+      ],
+      "zh-Hans": [
+        "法涅斯",
+        "原初的那一位"
+      ]
+    },
+    "related": [
+      "천리",
+      "강림자"
+    ],
+    "confidence": "manual_seed"
+  },
+  {
+    "concept_id": "manual:irminsul",
+    "entity_type": "lore_concept",
+    "primary_name": "세계수",
+    "aliases": {
+      "ko": [
+        "세계수"
+      ],
+      "en": [
+        "Irminsul"
+      ],
+      "ja": [
+        "世界樹"
+      ],
+      "zh-Hans": [
+        "世界树"
+      ]
+    },
+    "related": [
+      "기억",
+      "기록",
+      "이름 삭제",
+      "역사 개변"
+    ],
+    "confidence": "manual_seed"
+  },
+  {
+    "concept_id": "manual:descender",
+    "entity_type": "lore_concept",
+    "primary_name": "강림자",
+    "aliases": {
+      "ko": [
+        "강림자"
+      ],
+      "en": [
+        "Descender",
+        "Descenders"
+      ],
+      "ja": [
+        "降臨者"
+      ],
+      "zh-Hans": [
+        "降临者"
+      ]
+    },
+    "related": [
+      "천리",
+      "여행자",
+      "세계 밖"
+    ],
+    "confidence": "manual_seed"
+  },
+  {
+    "concept_id": "manual:four_shades",
+    "entity_type": "lore_concept",
+    "primary_name": "네 그림자",
+    "aliases": {
+      "ko": [
+        "네 그림자",
+        "네 명의 그림자"
+      ],
+      "en": [
+        "Four Shades",
+        "four shining shades"
+      ],
+      "ja": [
+        "四つの影",
+        "四影"
+      ],
+      "zh-Hans": [
+        "四影",
+        "四个影子"
+      ]
+    },
+    "related": [
+      "파네스",
+      "원초의 그분",
+      "이스타로트"
+    ],
+    "confidence": "manual_seed"
+  },
+  {
+    "concept_id": "manual:forbidden_knowledge",
+    "entity_type": "lore_concept",
+    "primary_name": "금지된 지식",
+    "aliases": {
+      "ko": [
+        "금지된 지식"
+      ],
+      "en": [
+        "forbidden knowledge",
+        "Forbidden Knowledge"
+      ],
+      "ja": [
+        "禁忌の知識"
+      ],
+      "zh-Hans": [
+        "禁忌知识"
+      ]
+    },
+    "related": [
+      "심연",
+      "세계수",
+      "대재앙"
+    ],
+    "confidence": "manual_seed"
+  },
+  {
+    "concept_id": "manual:loom_of_fate",
+    "entity_type": "lore_concept",
+    "primary_name": "운명의 베틀",
+    "aliases": {
+      "ko": [
+        "운명의 베틀"
+      ],
+      "en": [
+        "Loom of Fate"
+      ],
+      "ja": [
+        "運命の織機"
+      ],
+      "zh-Hans": [
+        "命运的织机"
+      ]
+    },
+    "related": [
+      "심연 교단",
+      "켄리아",
+      "카리베르트"
+    ],
+    "confidence": "manual_seed"
+  },
+  {
+    "concept_id": "manual:nibelung",
+    "entity_type": "character_or_entity",
+    "primary_name": "니벨룽겐",
+    "aliases": {
+      "ko": [
+        "니벨룽겐"
+      ],
+      "en": [
+        "Nibelung"
+      ],
+      "ja": [
+        "ニーベルンゲン"
+      ],
+      "zh-Hans": [
+        "尼伯龙根"
+      ]
+    },
+    "related": [
+      "용왕",
+      "천리",
+      "달의 세 여신"
+    ],
+    "confidence": "manual_seed"
+  }
+]

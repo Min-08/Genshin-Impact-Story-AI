@@ -1,0 +1,67 @@
+{
+  "version": "0.5.0",
+  "description": "Developer retrieval evaluation set for the Genshin lore search engine. Cases are intentionally small and lore-heavy so they can be run after every ranking or alias change.",
+  "default_limit": 10,
+  "cases": [
+    {
+      "id": "heavenly_principles_core",
+      "query": "천리",
+      "expected_route": "analysis",
+      "expected_concepts": ["manual:heavenly_principles"],
+      "expected_canonical_ids": ["project_amber:quest:1406", "project_amber:quest:1606"],
+      "expected_content_types": ["quest"],
+      "notes": "천리/Heavenly Principles 직접 언급 퀘스트 회수."
+    },
+    {
+      "id": "khaenriah_core",
+      "query": "Khaenri'ah",
+      "expected_route": "analysis",
+      "expected_concepts": ["manual:khaenriah"],
+      "expected_canonical_ids": ["project_amber:quest:1308", "project_amber:quest:1104"],
+      "expected_content_types": ["quest"],
+      "notes": "영어 질의가 한국어/중국어/일본어 병렬 표현으로 확장되는지 확인."
+    },
+    {
+      "id": "phanes_four_shades",
+      "query": "파네스 네 그림자",
+      "expected_route": "analysis",
+      "expected_concepts": ["manual:phanes", "manual:four_shades"],
+      "expected_canonical_ids": ["project_amber:book:1036"],
+      "expected_content_types": ["book"],
+      "notes": "일월 과거사 / Before Sun and Moon 회수."
+    },
+    {
+      "id": "irminsul_memory_connection",
+      "query": "세계수와 기억 조작 연결 가능성",
+      "expected_route": "research",
+      "expected_concepts": ["manual:irminsul"],
+      "expected_canonical_ids": ["project_amber:quest:1307", "project_amber:quest:1301"],
+      "expected_content_types": ["quest"],
+      "notes": "세계수-기억 계열 연결 질의."
+    },
+    {
+      "id": "artifact_exact_lookup",
+      "query": "절연의 기치 효과",
+      "expected_route": "basic_lookup",
+      "expected_concepts": ["project_amber:reliquary:15020"],
+      "expected_canonical_ids": ["project_amber:reliquary:15020"],
+      "expected_content_types": ["reliquary"],
+      "notes": "단순 게임 정보 조회가 연구 모드로 과확장되지 않는지 확인."
+    },
+    {
+      "id": "loom_of_fate_core",
+      "query": "운명의 베틀",
+      "expected_route": "analysis",
+      "expected_concepts": ["manual:loom_of_fate"],
+      "expected_canonical_ids": ["project_amber:quest:1406", "project_amber:quest:1104"],
+      "expected_content_types": ["quest"],
+      "notes": "운명의 베틀 핵심 퀘스트 회수."
+    }
+  ],
+  "thresholds": {
+    "canonical_recall_at_k": 0.6,
+    "concept_recall": 0.6,
+    "route_accuracy": 0.8,
+    "mrr": 0.35
+  }
+}

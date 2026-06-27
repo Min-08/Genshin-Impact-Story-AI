@@ -1,0 +1,84 @@
+{
+  "languages": {
+    "ko": {
+      "label": "Korean",
+      "project_amber": "KR",
+      "dimbreath_textmap": "TextMapKR.json",
+      "genshin_data_readable": "KR"
+    },
+    "zh-Hans": {
+      "label": "Chinese Simplified",
+      "project_amber": "CHS",
+      "dimbreath_textmap": "TextMapCHS.json",
+      "genshin_data_readable": "CHS"
+    },
+    "ja": {
+      "label": "Japanese",
+      "project_amber": "JP",
+      "dimbreath_textmap": "TextMapJP.json",
+      "genshin_data_readable": "JP"
+    },
+    "en": {
+      "label": "English",
+      "project_amber": "EN",
+      "dimbreath_textmap": "TextMapEN.json",
+      "genshin_data_readable": "EN"
+    }
+  },
+  "sources": {
+    "project_amber": {
+      "base_url": "https://gi.yatta.moe/api/v2",
+      "content_types": [
+        "quest",
+        "avatar",
+        "weapon",
+        "gcg",
+        "reliquary",
+        "book",
+        "material",
+        "food",
+        "furniture",
+        "furnitureSuite",
+        "monster",
+        "namecard",
+        "achievement",
+        "elements"
+      ],
+      "list_only_content_types": [
+        "achievement",
+        "elements"
+      ],
+      "extra_list_only_content_types": [
+        "pronoun",
+        "everything",
+        "manualWeapon",
+        "combine",
+        "dailyDungeon",
+        "upgrade",
+        "tower"
+      ],
+      "static_content_types": [
+        "static_changelog",
+        "avatarCurve",
+        "weaponCurve",
+        "reliquaryCurve",
+        "monsterCurve",
+        "event",
+        "advanced_avatar_guide",
+        "advanced_weapon_guide",
+        "advanced_reliquary_guide"
+      ]
+    },
+    "dimbreath_textmap": {
+      "base_url": "https://raw.githubusercontent.com/DimbreathBot/AnimeGameData/master/TextMap"
+    },
+    "genshin_data_readable": {
+      "api_url": "https://api.github.com/repos/Milkve/GenshinData/contents/Readable",
+      "raw_url": "https://raw.githubusercontent.com/Milkve/GenshinData/master/Readable"
+    }
+  },
+  "policy": {
+    "include_unreleased_default": false,
+    "future_release_grace_days": 7
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/genshin-lore-db/search_evaluation_case.schema.json",
+  "title": "Genshin Lore Search Evaluation Set",
+  "type": "object",
+  "required": ["version", "cases"],
+  "properties": {
+    "version": {"type": "string"},
+    "description": {"type": "string"},
+    "default_limit": {"type": "integer", "minimum": 1},
+    "cases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "query"],
+        "properties": {
+          "id": {"type": "string"},
+          "query": {"type": "string"},
+          "limit": {"type": "integer", "minimum": 1},
+          "expected_route": {"type": "string"},
+          "expected_concepts": {
+            "type": "array",
+            "items": {"type": "string"}
+          },
+          "expected_canonical_ids": {
+            "type": "array",
+            "items": {"type": "string"}
+          },
+          "expected_content_types": {
+            "type": "array",
+            "items": {"type": "string"}
+          },
+          "notes": {"type": "string"}
+        }
+      }
+    },
+    "thresholds": {
+      "type": "object"
+    }
+  }
+}
