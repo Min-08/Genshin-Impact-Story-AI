@@ -15,6 +15,7 @@ docs/
   ARCHITECTURE.md
   DATA_PIPELINE.md
   SEARCH_ENGINE.md
+  ANSWER_ROUTING_DESIGN.md
   ROADMAP.md
   PROJECT_STRUCTURE.md
   research/
@@ -100,6 +101,7 @@ docs/PROJECT_VISION.md      # 프로젝트 목적
 docs/ARCHITECTURE.md        # 시스템 계층과 목표 구조
 docs/DATA_PIPELINE.md       # 수집, RAW, processed, canonical, index
 docs/SEARCH_ENGINE.md       # 검색엔진과 Evidence Pack
+docs/ANSWER_ROUTING_DESIGN.md # 질문 수준별 답변 라우팅과 AI 사용 계약
 docs/ROADMAP.md             # 버전별 목표
 docs/PROJECT_STRUCTURE.md   # 코드/문서/데이터 배치 기준
 docs/research/              # 논의 로그와 평가 메모
@@ -113,4 +115,3 @@ docs/research/              # 논의 로그와 평가 메모
 - 새 검색 로직은 가능하면 `search_engine/` 아래에 둡니다.
 - 대용량 생성 데이터는 GitHub에 올리지 않는 것을 기본값으로 둡니다.
 - import 호환이 필요한 기존 모듈은 얇은 래퍼로 남기고, 새 코드만 새 경로를 사용합니다.
-
