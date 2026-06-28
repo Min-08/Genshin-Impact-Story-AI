@@ -56,6 +56,114 @@
       "expected_canonical_ids": ["project_amber:quest:1406", "project_amber:quest:1104"],
       "expected_content_types": ["quest"],
       "notes": "운명의 베틀 핵심 퀘스트 회수."
+    },
+    {
+      "id": "abyss_order_core",
+      "query": "심연 교단",
+      "expected_route": "analysis",
+      "expected_concepts": ["manual:abyss"],
+      "expected_canonical_ids": ["project_amber:quest:1506", "project_amber:quest:1308"],
+      "expected_content_types": ["quest"],
+      "notes": "심연 교단 관련 퀘스트와 수동 심연 seed 회수."
+    },
+    {
+      "id": "celestia_core",
+      "query": "셀레스티아",
+      "expected_route": "analysis",
+      "expected_concepts": ["manual:celestia"],
+      "expected_canonical_ids": ["project_amber:quest:1104", "project_amber:quest:1611"],
+      "expected_content_types": ["quest"],
+      "notes": "셀레스티아 직접 언급과 다국어 퀘스트 회수."
+    },
+    {
+      "id": "descender_core",
+      "query": "강림자",
+      "expected_route": "analysis",
+      "expected_concepts": ["manual:descender"],
+      "expected_canonical_ids": ["project_amber:quest:1305", "project_amber:quest:1405"],
+      "expected_content_types": ["quest"],
+      "notes": "강림자 개념이 수메르/폰타인 핵심 퀘스트로 연결되는지 확인."
+    },
+    {
+      "id": "forbidden_knowledge_core",
+      "query": "금지된 지식",
+      "expected_route": "analysis",
+      "expected_concepts": ["manual:forbidden_knowledge"],
+      "expected_canonical_ids": ["project_amber:quest:1308", "project_amber:quest:2039"],
+      "expected_content_types": ["quest"],
+      "notes": "금지된 지식 seed와 관련 공식 텍스트 회수."
+    },
+    {
+      "id": "nibelung_core",
+      "query": "니벨룽겐",
+      "expected_route": "analysis",
+      "expected_concepts": ["manual:nibelung"],
+      "expected_canonical_ids": ["project_amber:quest:1606", "project_amber:quest:1608", "project_amber:quest:2039"],
+      "expected_content_types": ["quest"],
+      "notes": "니벨룽겐과 용왕 관련 최신 퀘스트 회수."
+    },
+    {
+      "id": "phanes_primordial_one",
+      "query": "원초의 그분",
+      "expected_route": "analysis",
+      "expected_concepts": ["manual:phanes"],
+      "expected_canonical_ids": ["project_amber:book:1036"],
+      "expected_content_types": ["book"],
+      "notes": "파네스 별칭이 일월 과거사로 연결되는지 확인."
+    },
+    {
+      "id": "istaroth_core",
+      "query": "이스타로트",
+      "expected_route": "analysis",
+      "expected_concepts": ["manual:istaroth"],
+      "expected_canonical_ids": ["project_amber:quest:1506", "project_amber:book:1036"],
+      "expected_content_types": ["quest", "book"],
+      "notes": "이스타로트 신규 manual seed 회수."
+    },
+    {
+      "id": "false_sky_core",
+      "query": "가짜 하늘",
+      "expected_route": "analysis",
+      "expected_concepts": ["manual:false_sky"],
+      "expected_canonical_ids": ["project_amber:quest:1600", "project_amber:quest:1608"],
+      "expected_content_types": ["quest"],
+      "notes": "가짜 하늘 motif seed와 나틀/공월 계열 퀘스트 회수."
+    },
+    {
+      "id": "moon_sisters_core",
+      "query": "달의 세 여신",
+      "expected_route": "analysis",
+      "expected_concepts": ["manual:moon_sisters"],
+      "expected_canonical_ids": ["project_amber:quest:1606", "project_amber:quest:1608"],
+      "expected_content_types": ["quest"],
+      "notes": "달의 세 여신 신규 seed와 공월 퀘스트 회수."
+    },
+    {
+      "id": "divine_throne_core",
+      "query": "신좌",
+      "expected_route": "analysis",
+      "expected_concepts": ["manual:divine_throne"],
+      "expected_canonical_ids": ["project_amber:quest:1405", "project_amber:quest:1501"],
+      "expected_content_types": ["quest"],
+      "notes": "신좌/왕좌 계열 motif seed 회수."
+    },
+    {
+      "id": "primordial_dragon_king_core",
+      "query": "원초의 용왕",
+      "expected_route": "analysis",
+      "expected_concepts": ["manual:primordial_dragon_king"],
+      "expected_canonical_ids": ["project_amber:quest:2039", "project_amber:quest:1608"],
+      "expected_content_types": ["quest"],
+      "notes": "원초의 용왕 신규 seed와 니벨룽겐 관련 퀘스트 회수."
+    },
+    {
+      "id": "sinner_khaenriah_core",
+      "query": "죄인 켄리아",
+      "expected_route": "analysis",
+      "expected_concepts": ["manual:khaenriah", "manual:sinner"],
+      "expected_canonical_ids": ["project_amber:quest:1406", "project_amber:quest:76090"],
+      "expected_content_types": ["quest"],
+      "notes": "죄인 신규 seed와 켄리아 seed가 함께 잡히는지 확인."
     }
   ],
   "thresholds": {

@@ -52,7 +52,7 @@ def build_reasoning_prompt(investigation: dict[str, Any], *, max_items: int = 24
         "context_blocks": context_blocks,
         "notes": [
             "이 패키지는 API 호출을 수행하지 않습니다.",
-            "로컬 Llama에는 system/user/context_blocks를 합쳐 단일 프롬프트로 넘기면 됩니다.",
+            "로컬 Ollama 모델에는 system/user/context_blocks를 합쳐 단일 프롬프트로 넘기면 됩니다.",
             "Gemini API에는 system instruction과 user content parts로 분리해 넘기면 됩니다.",
         ],
     }

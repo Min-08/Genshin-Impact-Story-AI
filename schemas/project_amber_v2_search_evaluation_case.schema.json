@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/genshin-lore-db/project_amber_v2_search_evaluation_case.schema.json",
+  "title": "Project Amber v2 Search Evaluation Set",
+  "type": "object",
+  "required": ["version", "cases"],
+  "properties": {
+    "version": {"type": "string"},
+    "description": {"type": "string"},
+    "default_limit": {"type": "integer", "minimum": 1},
+    "default_mode": {"type": "string", "enum": ["unicode", "trigram"]},
+    "cases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "query"],
+        "properties": {
+          "id": {"type": "string"},
+          "query": {"type": "string"},
+          "language": {"type": "string"},
+          "content_type": {"type": "string"},
+          "limit": {"type": "integer", "minimum": 1},
+          "mode": {"type": "string", "enum": ["unicode", "trigram"]},
+          "include_textmap": {"type": "boolean"},
+          "expected_canonical_ids": {
+            "type": "array",
+            "items": {"type": "string"}
+          },
+          "expected_content_types": {
+            "type": "array",
+            "items": {"type": "string"}
+          },
+          "expected_languages": {
+            "type": "array",
+            "items": {"type": "string"}
+          },
+          "required_fragments": {
+            "type": "array",
+            "items": {"type": "string"}
+          },
+          "notes": {"type": "string"}
+        }
+      }
+    },
+    "thresholds": {
+      "type": "object"
+    }
+  }
+}

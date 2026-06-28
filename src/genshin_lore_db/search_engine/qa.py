@@ -11,6 +11,8 @@ from genshin_lore_db.normalize import clean_text
 from genshin_lore_db.pipeline.project_amber_v2 import search_project_amber_v2
 from genshin_lore_db.search_engine.aliases import normalize_alias
 from genshin_lore_db.search_engine.local_llm import DEFAULT_OLLAMA_MODEL, rewrite_answer_with_ollama
+from genshin_lore_db.search_engine.router import is_greeting_query, route_query
+from genshin_lore_db.search_engine.semantic import parse_query_semantics_with_ollama
 
 
 SUPPORTED_CONTENT_TYPES = {"avatar", "weapon", "reliquary"}
@@ -26,6 +28,29 @@ QUERY_HINTS = {
     "성유물",
     "무기",
     "캐릭터",
+    "대해서",
+    "누구야",
+    "뭐야",
+}
+
+STRUCTURED_FORMAT_TERMS = {
+    "정리",
+    "목록",
+    "리스트",
+    "표",
+    "핵심만",
+}
+
+TABLE_FORMAT_TERMS = {"표"}
+CONSTELLATION_TERMS = {"별자리", "운명의 자리", "운명의자리", "돌파 효과", "돌파효과"}
+TALENT_TERMS = {"특성", "스킬", "전투 특성", "패시브"}
+
+UNSUPPORTED_ANSWER_TERMS = {
+    "추천",
+    "티어",
+    "세팅",
+    "나선비경",
+    "공략",
 }
 
 ELEMENT_LABELS = {
@@ -68,6 +93,13 @@ PROP_LABELS = {
     "FIGHT_PROP_ELEMENT_MASTERY": "원소 마스터리",
     "FIGHT_PROP_PHYSICAL_ADD_HURT": "물리 피해 보너스",
     "FIGHT_PROP_HEAL_ADD": "치유 보너스",
+    "FIGHT_PROP_FIRE_ADD_HURT": "불 원소 피해 보너스",
+    "FIGHT_PROP_WATER_ADD_HURT": "물 원소 피해 보너스",
+    "FIGHT_PROP_GRASS_ADD_HURT": "풀 원소 피해 보너스",
+    "FIGHT_PROP_ELEC_ADD_HURT": "번개 원소 피해 보너스",
+    "FIGHT_PROP_WIND_ADD_HURT": "바람 원소 피해 보너스",
+    "FIGHT_PROP_ICE_ADD_HURT": "얼음 원소 피해 보너스",
+    "FIGHT_PROP_ROCK_ADD_HURT": "바위 원소 피해 보너스",
 }
 
 
@@ -82,14 +114,29 @@ def answer_question(
 ) -> dict[str, Any]:
     root_path = Path(root).resolve()
     search_db = db_path or root_path / "data" / "processed" / "search_v2" / "project_amber_search.sqlite3"
-    resolution = resolve_qa_target(search_db, query, language=language)
+    route = route_answer_query(
+        root_path,
+        query,
+        use_llm=use_llm,
+        model=model,
+        db_path=search_db,
+        language=language,
+    )
+    if route.get("mode") == "chitchat":
+        return small_talk_answer(query, search_db, route=route)
+    if route.get("mode") != "basic_lookup":
+        return unsupported_answer(query, search_db, route=route)
+    if not should_attempt_basic_lookup(query, route=route):
+        return unsupported_answer(query, search_db, route=route)
+    resolution = None if contains_unsupported_answer_term(query) else resolve_qa_target(search_db, query, language=language)
     if not resolution:
-        return unsupported_answer(query, search_db)
+        return unsupported_answer(query, search_db, route=route)
 
     raw_path = Path(resolution["raw_ref"])
     raw_record = read_json(raw_path)
-    facts = build_facts(raw_record, resolution)
-    draft_answer = draft_answer_from_facts(facts)
+    requested_format = str(route.get("requested_format") or requested_format_for_query(query))
+    facts = build_facts(raw_record, resolution, query=query)
+    draft_answer = draft_answer_from_facts(facts, requested_format=requested_format)
     llm_state: dict[str, Any] = {
         "enabled": use_llm,
         "used": False,
@@ -109,13 +156,15 @@ def answer_question(
             }
         )
         if llm_result.get("ok"):
-            llm_validation = validate_answer(str(llm_result.get("content") or ""), facts, draft_answer)
+            candidate_answer = str(llm_result.get("content") or "").strip()
+            llm_validation = validate_answer(candidate_answer, facts, draft_answer)
             llm_state["validation"] = llm_validation
             if llm_validation["ok"]:
-                final_answer = str(llm_result["content"]).strip()
+                final_answer = candidate_answer
                 llm_state["used"] = True
                 validation = llm_validation
             else:
+                llm_state["candidate_answer"] = candidate_answer
                 llm_state["error"] = {
                     "type": "validation_failed",
                     "message": "; ".join(llm_validation["reasons"]),
@@ -124,6 +173,9 @@ def answer_question(
 
     return {
         "query": query,
+        "canonical_id": resolution.get("canonical_id"),
+        "content_type": facts.get("content_type") or resolution.get("content_type"),
+        "item_id": facts.get("item_id") or resolution.get("item_id"),
         "intent": facts["intent"],
         "facts": facts,
         "draft_answer": draft_answer,
@@ -131,7 +183,150 @@ def answer_question(
         "llm": llm_state,
         "validation": validation,
         "sources": facts["sources"],
+        "route": route,
+        "requested_format": requested_format,
+        "semantic_parse": route.get("semantic_parse"),
     }
+
+
+def route_answer_query(
+    root: Path | str,
+    query: str,
+    *,
+    use_llm: bool = True,
+    model: str = DEFAULT_OLLAMA_MODEL,
+    db_path: Path | None = None,
+    language: str = DEFAULT_LANGUAGE,
+) -> dict[str, Any]:
+    root_path = Path(root).resolve()
+    search_db = db_path or root_path / "data" / "processed" / "search_v2" / "project_amber_search.sqlite3"
+    rule = route_query(query).to_dict()
+    requested_format = requested_format_for_query(query)
+    semantic_state = semantic_parse_state(query, use_llm=use_llm, model=model)
+
+    if rule.get("mode") == "chitchat" or semantic_is_greeting(semantic_state):
+        route = {
+            "mode": "chitchat",
+            "confidence": 0.98,
+            "signals": ["guard:greeting"],
+            "reason": "일반 인사말이므로 검색이나 정답형 QA로 보내지 않습니다.",
+        }
+        route.update(
+            {
+                "intent": "small_talk",
+                "requested_format": requested_format,
+                "semantic_parse": semantic_state,
+            }
+        )
+        return route
+
+    has_relation_or_research = rule.get("mode") in {"summary", "research"} or any(
+        str(signal).startswith("relation:") for signal in rule.get("signals") or []
+    )
+    allow_exact_lookup = not contains_unsupported_answer_term(query) and not has_relation_or_research
+    resolution = resolve_qa_target(search_db, query, language=language) if allow_exact_lookup else None
+    intent = classify_lookup_intent(query, resolution)
+    if resolution and not has_relation_or_research:
+        route = {
+            "mode": "basic_lookup",
+            "confidence": max(float(rule.get("confidence") or 0.0), 0.88),
+            "signals": [*list(rule.get("signals") or []), f"exact_lookup:{resolution.get('content_type')}", f"intent:{intent}"],
+            "reason": "지원되는 공식 데이터 엔티티가 정확히 확인되어 정답형 조회로 분류했습니다.",
+        }
+    elif not has_relation_or_research and (semantic_route := semantic_route_candidate(semantic_state)):
+        route = semantic_route
+    else:
+        route = dict(rule)
+
+    route.update(
+        {
+            "intent": intent,
+            "requested_format": requested_format,
+            "semantic_parse": semantic_state,
+        }
+    )
+    if resolution:
+        route["entities"] = [
+            {
+                "surface": resolution.get("title"),
+                "canonical_id": resolution.get("canonical_id"),
+                "content_type": resolution.get("content_type"),
+                "confidence": 1.0,
+            }
+        ]
+    return route
+
+
+def should_attempt_basic_lookup(query: str, *, route: dict[str, Any] | None = None) -> bool:
+    route_data = route or route_query(query).to_dict()
+    mode = str(route_data.get("mode") or "")
+    signals = [str(signal) for signal in route_data.get("signals") or []]
+    if mode in {"summary", "research", "chitchat"}:
+        return False
+    if mode == "analysis" and any(signal.startswith("relation:") for signal in signals):
+        return False
+    normalized = normalize_alias(query)
+    return not contains_unsupported_answer_term(query)
+
+
+def contains_unsupported_answer_term(query: str) -> bool:
+    normalized = normalize_alias(query)
+    return any(term in normalized for term in UNSUPPORTED_ANSWER_TERMS)
+
+
+def semantic_parse_state(query: str, *, use_llm: bool, model: str) -> dict[str, Any]:
+    if not use_llm:
+        return {"enabled": False, "ok": False, "parse": None, "error": None, "model": model}
+    result = parse_query_semantics_with_ollama(query, model=model)
+    result["enabled"] = True
+    return result
+
+
+def semantic_is_greeting(state: dict[str, Any]) -> bool:
+    parse = state.get("parse") if isinstance(state, dict) else None
+    return bool(isinstance(parse, dict) and (parse.get("is_greeting") or parse.get("route") == "chitchat"))
+
+
+def semantic_route_candidate(state: dict[str, Any]) -> dict[str, Any] | None:
+    parse = state.get("parse") if isinstance(state, dict) else None
+    if not isinstance(parse, dict):
+        return None
+    route = str(parse.get("route") or "")
+    if route not in {"basic_lookup", "summary", "analysis", "research"}:
+        return None
+    return {
+        "mode": route,
+        "confidence": max(0.5, float(parse.get("confidence") or 0.0)),
+        "signals": [f"semantic:{route}"],
+        "reason": parse.get("reason") or "LLM semantic parser 결과를 보조 라우팅 신호로 사용했습니다.",
+    }
+
+
+def requested_format_for_query(query: str) -> str:
+    normalized = normalize_alias(query)
+    if any(term in normalized for term in TABLE_FORMAT_TERMS):
+        return "table"
+    if any(term in normalized for term in STRUCTURED_FORMAT_TERMS):
+        return "bullet"
+    return "paragraph"
+
+
+def classify_lookup_intent(query: str, resolution: dict[str, Any] | None) -> str | None:
+    if not resolution:
+        return None
+    content_type = str(resolution.get("content_type") or "")
+    normalized = normalize_alias(query)
+    if content_type == "avatar":
+        if any(term in normalized for term in CONSTELLATION_TERMS):
+            return "character_constellation"
+        if any(term in normalized for term in TALENT_TERMS):
+            return "character_talent"
+        return "character_basic_info"
+    if content_type == "weapon":
+        return "weapon_basic_info"
+    if content_type == "reliquary":
+        return "reliquary_effect_lookup"
+    return None
 
 
 def resolve_qa_target(db_path: Path, query: str, *, language: str = DEFAULT_LANGUAGE) -> dict[str, Any] | None:
@@ -244,7 +439,7 @@ def content_type_hint_score(query: str, content_type: str) -> int:
     return 0
 
 
-def build_facts(raw_record: dict[str, Any], resolution: dict[str, Any]) -> dict[str, Any]:
+def build_facts(raw_record: dict[str, Any], resolution: dict[str, Any], *, query: str = "") -> dict[str, Any]:
     payload = raw_record.get("payload") or {}
     source = source_from_raw(raw_record, resolution)
     content_type = str(resolution.get("content_type") or raw_record.get("metadata", {}).get("content_type") or "")
@@ -253,7 +448,8 @@ def build_facts(raw_record: dict[str, Any], resolution: dict[str, Any]) -> dict[
     if content_type == "weapon":
         return build_weapon_facts(payload, source=source)
     if content_type == "avatar":
-        return build_character_facts(payload, source=source)
+        intent = classify_lookup_intent(query, resolution) or "character_basic_info"
+        return build_character_facts(payload, source=source, intent=intent)
     raise ValueError(f"Unsupported QA content type: {content_type}")
 
 
@@ -328,10 +524,15 @@ def build_weapon_facts(payload: dict[str, Any], *, source: dict[str, Any]) -> di
     }
 
 
-def build_character_facts(payload: dict[str, Any], *, source: dict[str, Any]) -> dict[str, Any]:
+def build_character_facts(
+    payload: dict[str, Any],
+    *,
+    source: dict[str, Any],
+    intent: str = "character_basic_info",
+) -> dict[str, Any]:
     fetter = payload.get("fetter") or {}
     return {
-        "intent": "character_basic_info",
+        "intent": intent,
         "content_type": "avatar",
         "name": clean_text(payload.get("name") or ""),
         "item_id": str(payload.get("id") or ""),
@@ -344,10 +545,63 @@ def build_character_facts(payload: dict[str, Any], *, source: dict[str, Any]) ->
         "detail": clean_text(fetter.get("detail") or ""),
         "native": clean_text(fetter.get("native") or ""),
         "constellation": clean_text(fetter.get("constellation") or ""),
+        "constellations": character_constellations(payload),
+        "talents": character_talents(payload),
         "cv": fetter.get("cv") or {},
         "special_prop": prop_label(payload.get("specialProp")),
         "sources": [source],
     }
+
+
+def character_constellations(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    rows = []
+    for key, value in sorted((payload.get("constellation") or {}).items(), key=lambda pair: sort_key(pair[0])):
+        if not isinstance(value, dict):
+            continue
+        level = int(key) + 1 if str(key).isdigit() else key
+        rows.append(
+            {
+                "level": level,
+                "name": clean_text(value.get("name") or ""),
+                "description": clean_text(value.get("description") or ""),
+            }
+        )
+    return rows
+
+
+def character_talents(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    rows = []
+    for key, value in sorted((payload.get("talent") or {}).items(), key=lambda pair: sort_key(pair[0])):
+        if not isinstance(value, dict):
+            continue
+        name = clean_text(value.get("name") or "")
+        description = clean_text(value.get("description") or "")
+        if not name or not description:
+            continue
+        rows.append(
+            {
+                "id": str(key),
+                "name": name,
+                "description": description,
+                "kind": talent_kind(str(key), name),
+            }
+        )
+    return rows
+
+
+def talent_kind(key: str, name: str) -> str:
+    if key == "0":
+        return "normal_attack"
+    if key in {"1", "2"}:
+        return "elemental_skill"
+    if key == "3":
+        return "elemental_burst"
+    return "passive"
+
+
+def sort_key(value: Any) -> tuple[int, str]:
+    text = str(value)
+    return (int(text), text) if text.isdigit() else (9999, text)
 
 
 def source_from_raw(raw_record: dict[str, Any], resolution: dict[str, Any]) -> dict[str, Any]:
@@ -384,79 +638,234 @@ def format_birthday(value: Any) -> str | None:
     return None
 
 
-def draft_answer_from_facts(facts: dict[str, Any]) -> str:
+def draft_answer_from_facts(facts: dict[str, Any], *, requested_format: str = "paragraph") -> str:
     intent = facts.get("intent")
     if intent == "reliquary_effect_lookup":
-        return draft_reliquary_answer(facts)
+        return draft_reliquary_answer(facts, requested_format=requested_format)
     if intent == "weapon_basic_info":
-        return draft_weapon_answer(facts)
+        return draft_weapon_answer(facts, requested_format=requested_format)
     if intent == "character_basic_info":
-        return draft_character_answer(facts)
+        return draft_character_answer(facts, requested_format=requested_format)
+    if intent == "character_constellation":
+        return draft_character_constellation_answer(facts, requested_format=requested_format)
+    if intent == "character_talent":
+        return draft_character_talent_answer(facts, requested_format=requested_format)
     return f"{facts.get('name') or '해당 항목'} 정보를 찾았습니다."
 
 
-def draft_reliquary_answer(facts: dict[str, Any]) -> str:
-    lines = [f"{with_topic_particle(facts['name'])} 성유물 세트입니다."]
+def draft_reliquary_answer(facts: dict[str, Any], *, requested_format: str) -> str:
+    if requested_format == "table":
+        rows = [["항목", "내용"], ["이름", facts["name"]], ["분류", "성유물 세트"]]
+        rows.extend([format_effect_label(effect), effect["text"]] for effect in facts.get("effects") or [])
+        if facts.get("acquisition"):
+            rows.append(["획득처", ", ".join(facts["acquisition"])])
+        rows.append(["출처", source_text(facts)])
+        return markdown_table(rows)
+    if requested_format == "bullet":
+        lines = [f"{with_topic_particle(facts['name'])} 성유물 세트입니다."]
+        for effect in facts.get("effects") or []:
+            lines.append(f"- {format_effect_label(effect)}: {effect['text']}")
+        piece_names = [piece["name"] for piece in facts.get("pieces") or [] if piece.get("name")]
+        if piece_names:
+            lines.append(f"- 구성 부위: {', '.join(piece_names)}")
+        if facts.get("acquisition"):
+            lines.append(f"- 획득처: {', '.join(facts['acquisition'])}")
+        lines.append(source_line(facts))
+        return "\n".join(lines)
+
+    paragraphs = [f"{with_topic_particle(facts['name'])} 성유물 세트입니다."]
     for effect in facts.get("effects") or []:
-        label = f"{effect['pieces']}세트" if effect.get("pieces") else effect["id"]
-        lines.append(f"- {label}: {effect['text']}")
+        paragraphs.append(f"{format_effect_label(effect)} 효과는 {effect['text']}입니다.")
     piece_names = [piece["name"] for piece in facts.get("pieces") or [] if piece.get("name")]
     if piece_names:
-        lines.append(f"- 구성 부위: {', '.join(piece_names)}")
+        paragraphs.append(f"구성 부위는 {', '.join(piece_names)}입니다.")
     if facts.get("acquisition"):
-        lines.append(f"- 획득처: {', '.join(facts['acquisition'])}")
-    lines.append(source_line(facts))
-    return "\n".join(lines)
+        paragraphs.append(f"획득처는 {', '.join(facts['acquisition'])}입니다.")
+    paragraphs.append(source_text(facts))
+    return "\n\n".join(paragraphs)
 
 
-def draft_weapon_answer(facts: dict[str, Any]) -> str:
-    lines = [f"{with_topic_particle(facts['name'])} {facts.get('rank')}성 {facts.get('weapon_type')}입니다."]
+def draft_weapon_answer(facts: dict[str, Any], *, requested_format: str) -> str:
+    if requested_format == "table":
+        rows = [
+            ["항목", "내용"],
+            ["이름", facts["name"]],
+            ["등급/종류", f"{facts.get('rank')}성 {facts.get('weapon_type')}"],
+        ]
+        if facts.get("special_prop"):
+            rows.append(["보조 속성", facts["special_prop"]])
+        for affix in facts.get("affixes") or []:
+            rows.append(["무기 효과", affix.get("name") or affix.get("id")])
+            for refinement in affix.get("refinements") or []:
+                rows.append([f"R{refinement['level']}", refinement["text"]])
+            break
+        rows.append(["출처", source_text(facts)])
+        return markdown_table(rows)
+
+    if requested_format == "bullet":
+        lines = [f"{with_topic_particle(facts['name'])} {facts.get('rank')}성 {facts.get('weapon_type')}입니다."]
+        if facts.get("description"):
+            lines.append(f"- 설명: {facts['description']}")
+        if facts.get("special_prop"):
+            lines.append(f"- 보조 속성: {facts['special_prop']}")
+        for affix in facts.get("affixes") or []:
+            lines.append(f"- 무기 효과: {affix.get('name') or affix.get('id')}")
+            refinements = affix.get("refinements") or []
+            if refinements:
+                lines.append("- 효과 수치는 제련 단계에 따라 증가합니다.")
+                for refinement in refinements:
+                    lines.append(f"  - R{refinement['level']}: {refinement['text']}")
+            break
+        lines.append(source_line(facts))
+        return "\n".join(lines)
+
+    paragraphs = [f"{with_topic_particle(facts['name'])} {facts.get('rank')}성 {facts.get('weapon_type')}입니다."]
     if facts.get("description"):
-        lines.append(f"- 설명: {facts['description']}")
+        paragraphs.append(f"설명은 {facts['description']}입니다.")
     if facts.get("special_prop"):
-        lines.append(f"- 보조 속성: {facts['special_prop']}")
-    affixes = facts.get("affixes") or []
-    if affixes:
-        affix = affixes[0]
-        lines.append(f"- 무기 효과: {affix.get('name') or affix.get('id')}")
+        paragraphs.append(f"보조 속성은 {facts['special_prop']}입니다.")
+    for affix in facts.get("affixes") or []:
+        effect_lines = [f"무기 효과는 {affix.get('name') or affix.get('id')}입니다."]
         refinements = affix.get("refinements") or []
         if refinements:
-            lines.append(f"- 1재련 효과: {refinements[0]['text']}")
-    lines.append(source_line(facts))
-    return "\n".join(lines)
+            effect_lines.append("효과 수치는 제련 단계에 따라 증가합니다.")
+            effect_lines.extend(f"R{refinement['level']}: {refinement['text']}" for refinement in refinements)
+        paragraphs.append("\n".join(effect_lines))
+        break
+    paragraphs.append(source_text(facts))
+    return "\n\n".join(paragraphs)
 
 
-def draft_character_answer(facts: dict[str, Any]) -> str:
-    lines = [f"{with_topic_particle(facts['name'])} {facts.get('rank')}성 캐릭터입니다."]
-    basics = []
-    for key, label in [
+def draft_character_answer(facts: dict[str, Any], *, requested_format: str) -> str:
+    if requested_format == "table":
+        rows = [["항목", "내용"], ["이름", facts["name"]], ["등급", f"{facts.get('rank')}성"]]
+        for key, label in character_basic_fields():
+            if facts.get(key):
+                rows.append([label, str(facts[key])])
+        rows.append(["출처", source_text(facts)])
+        return markdown_table(rows)
+
+    if requested_format == "bullet":
+        lines = [f"{with_topic_particle(facts['name'])} {facts.get('rank')}성 캐릭터입니다."]
+        for key, label in character_basic_fields():
+            if facts.get(key):
+                lines.append(f"- {label}: {facts[key]}")
+        if facts.get("cv"):
+            parts = [f"{lang}: {name}" for lang, name in sorted(facts["cv"].items()) if name]
+            if parts:
+                lines.append(f"- CV: {', '.join(parts)}")
+        lines.append(source_line(facts))
+        return "\n".join(lines)
+
+    first_bits = []
+    if facts.get("region"):
+        first_bits.append(f"{facts['region']} 출신의")
+    if facts.get("rank"):
+        first_bits.append(f"{facts['rank']}성")
+    if facts.get("element"):
+        first_bits.append(f"{facts['element']} 원소")
+    first = f"{with_topic_particle(facts['name'])} {' '.join(first_bits)} 캐릭터입니다.".replace("  ", " ")
+    paragraphs = [first]
+    details = []
+    if facts.get("weapon_type"):
+        details.append(f"무기는 {facts['weapon_type']}을 사용합니다")
+    if facts.get("constellation"):
+        details.append(f"운명의 자리는 {facts['constellation']}입니다")
+    if facts.get("birthday"):
+        details.append(f"생일은 {facts['birthday']}로 기록되어 있습니다")
+    if facts.get("special_prop"):
+        details.append(f"돌파 보너스는 {facts['special_prop']}입니다")
+    if details:
+        paragraphs.append(". ".join(details) + ".")
+    if facts.get("title"):
+        paragraphs.append(f"칭호는 {facts['title']}입니다.")
+    if facts.get("detail"):
+        paragraphs.append(f"소개문에는 {facts['detail']}라고 적혀 있습니다.")
+    if facts.get("cv"):
+        parts = [f"{lang}: {name}" for lang, name in sorted(facts["cv"].items()) if name]
+        if parts:
+            paragraphs.append(f"CV는 {', '.join(parts)}입니다.")
+    paragraphs.append(source_text(facts))
+    return "\n\n".join(paragraphs)
+
+
+def draft_character_constellation_answer(facts: dict[str, Any], *, requested_format: str) -> str:
+    rows = facts.get("constellations") or []
+    if requested_format == "table":
+        table_rows = [["단계", "이름", "효과"]]
+        table_rows.extend([f"C{row['level']}", row.get("name") or "", row.get("description") or ""] for row in rows)
+        table_rows.append(["출처", source_text(facts), ""])
+        return markdown_table(table_rows)
+    lines = [f"{facts['name']}의 별자리 효과입니다."]
+    for row in rows:
+        lines.append(f"C{row['level']} {row.get('name')}: {row.get('description')}")
+    lines.append(source_text(facts))
+    return "\n\n".join([lines[0], "\n".join(lines[1:-1]), lines[-1]])
+
+
+def draft_character_talent_answer(facts: dict[str, Any], *, requested_format: str) -> str:
+    rows = facts.get("talents") or []
+    if requested_format == "table":
+        table_rows = [["구분", "이름", "설명"]]
+        table_rows.extend([talent_kind_label(row.get("kind")), row.get("name") or "", row.get("description") or ""] for row in rows)
+        table_rows.append(["출처", source_text(facts), ""])
+        return markdown_table(table_rows)
+    lines = [f"{facts['name']}의 특성 정보입니다."]
+    for row in rows:
+        lines.append(f"{talent_kind_label(row.get('kind'))} - {row.get('name')}: {row.get('description')}")
+    lines.append(source_text(facts))
+    return "\n\n".join([lines[0], "\n".join(lines[1:-1]), lines[-1]])
+
+
+def source_line(facts: dict[str, Any]) -> str:
+    return f"- {source_text(facts)}"
+
+
+def source_text(facts: dict[str, Any]) -> str:
+    source = (facts.get("sources") or [{}])[0]
+    return f"출처: {source.get('source') or 'project_amber'} 공식 데이터 ({source.get('language') or 'ko'})"
+
+
+def format_effect_label(effect: dict[str, Any]) -> str:
+    return f"{effect['pieces']}세트" if effect.get("pieces") else str(effect.get("id") or "효과")
+
+
+def character_basic_fields() -> list[tuple[str, str]]:
+    return [
         ("element", "원소"),
         ("weapon_type", "무기"),
         ("region", "지역"),
         ("birthday", "생일"),
         ("constellation", "운명의 자리"),
         ("special_prop", "돌파 보너스"),
-    ]:
-        if facts.get(key):
-            basics.append(f"{label}: {facts[key]}")
-    if basics:
-        lines.append("- " + " / ".join(basics))
-    if facts.get("title"):
-        lines.append(f"- 칭호: {facts['title']}")
-    if facts.get("detail"):
-        lines.append(f"- 소개: {facts['detail']}")
-    if facts.get("cv"):
-        cvs = facts["cv"]
-        parts = [f"{lang}: {name}" for lang, name in sorted(cvs.items()) if name]
-        if parts:
-            lines.append(f"- CV: {', '.join(parts)}")
-    lines.append(source_line(facts))
-    return "\n".join(lines)
+        ("title", "칭호"),
+        ("detail", "소개"),
+    ]
 
 
-def source_line(facts: dict[str, Any]) -> str:
-    source = (facts.get("sources") or [{}])[0]
-    return f"- 출처: {source.get('source') or 'project_amber'} 공식 데이터 ({source.get('language') or 'ko'})"
+def talent_kind_label(kind: Any) -> str:
+    return {
+        "normal_attack": "일반 공격",
+        "elemental_skill": "원소전투 스킬",
+        "elemental_burst": "원소폭발",
+        "passive": "패시브",
+    }.get(str(kind), "특성")
+
+
+def markdown_table(rows: list[list[Any]]) -> str:
+    if not rows:
+        return ""
+    escaped = [[table_cell(value) for value in row] for row in rows]
+    width = max(len(row) for row in escaped)
+    padded = [row + [""] * (width - len(row)) for row in escaped]
+    header = "| " + " | ".join(padded[0]) + " |"
+    divider = "| " + " | ".join("---" for _ in range(width)) + " |"
+    body = ["| " + " | ".join(row) + " |" for row in padded[1:]]
+    return "\n".join([header, divider, *body])
+
+
+def table_cell(value: Any) -> str:
+    return clean_text(str(value or "")).replace("|", "\\|").replace("\n", "<br>")
 
 
 def with_topic_particle(value: str) -> str:
@@ -480,10 +889,21 @@ def validate_answer(answer: str, facts: dict[str, Any], draft_answer: str) -> di
     if primary_name and primary_name not in cleaned:
         reasons.append(f"missing_primary_name:{primary_name}")
     draft_cleaned = clean_text(draft_answer)
-    if draft_cleaned and len(cleaned) > int(len(draft_cleaned) * 1.35):
+    max_rewrite_length = max(int(len(draft_cleaned) * 1.65), len(draft_cleaned) + 60)
+    if draft_cleaned and len(cleaned) > max_rewrite_length:
         reasons.append("answer_too_long")
+    if draft_cleaned and compact_for_presence(cleaned).count(compact_for_presence(draft_cleaned)) > 1:
+        reasons.append("repeated_draft")
     if primary_name and cleaned.count(primary_name) > draft_cleaned.count(primary_name) + 1:
         reasons.append(f"repeated_primary_name:{primary_name}")
+
+    missing_fragments = [
+        fragment
+        for fragment in required_fact_fragments(facts)
+        if compact_for_presence(fragment) not in compact_for_presence(cleaned)
+    ]
+    if missing_fragments:
+        reasons.append("missing_fact_fragments:" + ",".join(missing_fragments[:5]))
 
     allowed_numbers = extract_numbers(json.dumps(facts, ensure_ascii=False) + "\n" + draft_answer)
     answer_numbers = extract_numbers(cleaned)
@@ -511,6 +931,60 @@ def validate_answer(answer: str, facts: dict[str, Any], draft_answer: str) -> di
     }
 
 
+def required_fact_fragments(facts: dict[str, Any]) -> list[str]:
+    fragments = []
+    intent = facts.get("intent")
+    rank = facts.get("rank")
+    weapon_type = facts.get("weapon_type")
+    if intent == "weapon_basic_info" and rank and weapon_type:
+        fragments.append(f"{rank}성 {weapon_type}")
+    if intent == "character_basic_info" and rank:
+        fragments.append(f"{rank}성")
+        fragments.append("캐릭터")
+    for effect in facts.get("effects") or []:
+        if effect.get("text"):
+            fragments.append(str(effect["text"]))
+    for value in facts.get("acquisition") or []:
+        if value:
+            fragments.append(str(value))
+    for affix in facts.get("affixes") or []:
+        if affix.get("name"):
+            fragments.append(str(affix["name"]))
+        refinements = affix.get("refinements") or []
+        for refinement in refinements:
+            if refinement.get("text"):
+                fragments.append(str(refinement["text"]))
+    if intent == "character_basic_info":
+        for key, _label in character_basic_fields():
+            if facts.get(key):
+                fragments.append(str(facts[key]))
+    elif intent == "character_constellation":
+        for row in facts.get("constellations") or []:
+            if row.get("name"):
+                fragments.append(str(row["name"]))
+            if row.get("description"):
+                fragments.append(str(row["description"]))
+    elif intent == "character_talent":
+        for row in facts.get("talents") or []:
+            if row.get("name"):
+                fragments.append(str(row["name"]))
+            if row.get("description"):
+                fragments.append(str(row["description"]))
+    else:
+        for key in [
+            "weapon_type",
+            "description",
+            "special_prop",
+        ]:
+            if facts.get(key):
+                fragments.append(str(facts[key]))
+    return fragments
+
+
+def compact_for_presence(text: str) -> str:
+    return re.sub(r"\s+", "", clean_text(text))
+
+
 def extract_numbers(text: str) -> set[str]:
     return set(re.findall(r"\d+(?:\.\d+)?%?", text))
 
@@ -522,10 +996,40 @@ def extract_quoted_names(text: str) -> list[str]:
     return [clean_text(row) for row in rows]
 
 
-def unsupported_answer(query: str, db_path: Path) -> dict[str, Any]:
-    message = "지원하는 정답형 QA 대상을 찾지 못했습니다. 현재는 성유물, 무기, 캐릭터 기본정보를 지원합니다."
+def small_talk_answer(query: str, db_path: Path, *, route: dict[str, Any]) -> dict[str, Any]:
+    message = "안녕하세요. 현재는 성유물, 무기, 캐릭터 공식 데이터 조회를 지원합니다. 궁금한 항목 이름을 입력해 주세요."
     return {
         "query": query,
+        "canonical_id": None,
+        "content_type": None,
+        "item_id": None,
+        "intent": "small_talk",
+        "facts": {},
+        "draft_answer": message,
+        "final_answer": message,
+        "llm": {
+            "enabled": False,
+            "used": False,
+            "model": DEFAULT_OLLAMA_MODEL,
+            "ok": False,
+            "error": None,
+        },
+        "validation": {"ok": True, "reasons": []},
+        "sources": [{"db_path": str(db_path)}],
+        "route": route,
+        "requested_format": route.get("requested_format") or "paragraph",
+        "semantic_parse": route.get("semantic_parse"),
+    }
+
+
+def unsupported_answer(query: str, db_path: Path, *, route: dict[str, Any] | None = None) -> dict[str, Any]:
+    message = "지원하는 정답형 QA 대상을 찾지 못했습니다. 현재는 성유물, 무기, 캐릭터 기본정보를 지원합니다."
+    route = route or route_query(query).to_dict()
+    return {
+        "query": query,
+        "canonical_id": None,
+        "content_type": None,
+        "item_id": None,
         "intent": "unsupported",
         "facts": {},
         "draft_answer": message,
@@ -539,4 +1043,7 @@ def unsupported_answer(query: str, db_path: Path) -> dict[str, Any]:
         },
         "validation": {"ok": True, "reasons": []},
         "sources": [{"db_path": str(db_path)}],
+        "route": route,
+        "requested_format": route.get("requested_format") or requested_format_for_query(query),
+        "semantic_parse": route.get("semantic_parse"),
     }

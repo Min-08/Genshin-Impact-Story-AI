@@ -33,7 +33,7 @@
 - LLM 호출 전 단계의 프롬프트 패키지 생성
 - Project Amber v2 canonical/readable/search DB 병행 생성
 - 책/성유물/무기/캐릭터/재료 deep 데이터를 `_보충 데이터`가 아니라 항목 하위 문서로 승격
-- 로컬 Ollama Llama 1B 기반 정답형 QA 초안 생성
+- 로컬 Ollama Qwen3 기반 정답형 QA 초안 생성
 
 현재 생성된 주요 데이터 규모는 다음과 같습니다.
 
@@ -54,7 +54,9 @@ python scripts/lore_search_engine.py search "천리" --limit 5
 python scripts/lore_search_engine.py search "Khaenri'ah" --limit 5
 python scripts/lore_search_engine.py route "세계수와 기억 조작 연결 가능성"
 python scripts/lore_search_engine.py investigate "페이몬의 정체와 천리 관련 근거" --limit 12
+python scripts/lore_chat.py
 python scripts/eval_search_engine.py
+python scripts/eval_answer_engine.py --fail-under
 ```
 
 Project Amber v2 DB를 만든 뒤 text unit 단위 검색을 확인할 수 있습니다.
@@ -65,15 +67,24 @@ python scripts/search_lore.py --db-version v2 "민들레밭의 여우" --languag
 python scripts/search_lore.py --db-version v2 "니벨룽겐" --language ko --limit 5
 ```
 
-정답형 질문은 Project Amber RAW에서 facts JSON을 만든 뒤 템플릿 답변을 생성하고, 선택적으로 로컬 Llama가 문장만 다듬습니다. LLM은 사실 생성기가 아니라 facts rewriter이며, 검증에 실패하면 템플릿 답변으로 되돌아갑니다.
+정답형 질문은 Project Amber RAW에서 facts JSON을 만든 뒤 템플릿 답변을 생성하고, 선택적으로 로컬 Qwen3가 문장만 다듬습니다. LLM은 사실 생성기가 아니라 facts rewriter이며, 검증에 실패하면 템플릿 답변으로 되돌아갑니다.
 
 ```powershell
 python scripts/lore_search_engine.py answer "절연의 기치 효과 알려줘" --no-llm --text
 python scripts/lore_search_engine.py answer "푸리나 기본정보" --no-llm --text
 python scripts/lore_search_engine.py answer "안개를 가르는 회광 정보" --no-llm --text
 
-python scripts/setup_local_llama.py --install --model llama3.2:1b
+python scripts/setup_local_llm.py --install --model qwen3:4b-instruct
 python scripts/lore_search_engine.py answer "절연의 기치 효과 알려줘" --text
+python scripts/eval_answer_engine.py --llm --fail-under
+```
+
+터미널에서 계속 질문을 던지며 테스트하려면 대화형 QA를 실행합니다. 기본값은 라우팅 ON, 로컬 Qwen3 ON입니다.
+
+```powershell
+python scripts/lore_chat.py
+python scripts/lore_search_engine.py chat
+.\lore_chat.cmd
 ```
 
 데이터를 처음부터 다시 만들 때의 기본 흐름은 다음과 같습니다.
@@ -99,6 +110,8 @@ python scripts/build_search_engine_assets.py
 ```text
 config/
   search_engine_manual_concepts.json
+  answer_evaluation_set.json
+  search_evaluation_set.json
   sources.json
 
 scripts/
@@ -113,10 +126,14 @@ scripts/
   build_entity_aliases.py
   build_search_engine_assets.py
   lore_search_engine.py
+  lore_chat.py
+  setup_local_llm.py
   setup_local_llama.py
+  eval_answer_engine.py
   eval_search_engine.py
 
 schemas/
+  answer_evaluation_case.schema.json
   evidence_pack.schema.json
   search_evaluation_case.schema.json
 

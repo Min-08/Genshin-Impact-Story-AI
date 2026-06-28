@@ -12,12 +12,14 @@ python scripts/lore_search_engine.py search "천리" --limit 5
 python scripts/lore_search_engine.py search "Khaenri'ah" --limit 5
 python scripts/lore_search_engine.py investigate "페이몬의 정체와 천리 관련 근거" --limit 12
 python scripts/lore_search_engine.py answer "절연의 기치 효과 알려줘" --no-llm --text
+python scripts/lore_chat.py
+python scripts/eval_answer_engine.py --fail-under
 python scripts/eval_search_engine.py
 ```
 
 `search`는 검색 결과를 그대로 보여주고, `investigate`는 연구용 Evidence Pack과 LLM 프롬프트 패키지 생성을 목표로 합니다. `answer`는 정답형 QA용입니다.
 
-## 정답형 QA와 로컬 Llama
+## 정답형 QA와 로컬 Qwen3
 
 `answer`는 현재 성유물 효과, 무기 기본정보/효과, 캐릭터 기본정보를 지원합니다.
 
@@ -27,14 +29,31 @@ python scripts/lore_search_engine.py answer "푸리나 기본정보" --no-llm --
 python scripts/lore_search_engine.py answer "안개를 가르는 회광 정보" --no-llm --text
 ```
 
-로컬 Llama를 사용하려면 Ollama와 `llama3.2:1b` 모델을 준비합니다.
+로컬 Qwen3를 사용하려면 Ollama와 `qwen3:4b-instruct` 모델을 준비합니다.
 
 ```powershell
-python scripts/setup_local_llama.py --install --model llama3.2:1b
+python scripts/setup_local_llm.py --install --model qwen3:4b-instruct
 python scripts/lore_search_engine.py answer "절연의 기치 효과 알려줘" --text
 ```
 
-정답형 QA의 사실 판단은 Project Amber v2 DB와 한국어 RAW JSON에서 수행합니다. 로컬 Llama는 `facts`와 `draft_answer`를 자연스러운 한국어로 다듬는 rewriter일 뿐이며, 새 숫자나 이름을 추가하면 validator가 실패 처리하고 템플릿 답변으로 되돌립니다.
+정답형 QA의 사실 판단은 Project Amber v2 DB와 한국어 RAW JSON에서 수행합니다. 로컬 Qwen3는 `facts`와 `draft_answer`를 자연스러운 한국어로 다듬는 rewriter일 뿐이며, 새 숫자나 이름을 추가하면 validator가 실패 처리하고 템플릿 답변으로 되돌립니다.
+
+반복 테스트는 대화형 터미널을 쓰면 됩니다. 기본값은 라우팅 ON, 로컬 Qwen3 ON입니다.
+
+```powershell
+python scripts/lore_chat.py
+python scripts/lore_search_engine.py chat
+.\lore_chat.cmd
+```
+
+정답형 QA 회귀 평가는 `config/answer_evaluation_set.json`을 기준으로 실행합니다. 기본값은 no-LLM deterministic 평가이고, `--llm`을 붙이면 Qwen3 rewrite 이후 validator/fallback이 적용된 최종 답변만 평가합니다.
+
+```powershell
+python scripts/eval_answer_engine.py --fail-under
+python scripts/eval_answer_engine.py --llm --fail-under
+```
+
+평가 케이스 스키마는 `schemas/answer_evaluation_case.schema.json`에 있습니다. 리포트 기본 출력 경로는 `data/processed/search_engine/answer_evaluation_report.json`입니다.
 
 ## 현재 검색 채널
 

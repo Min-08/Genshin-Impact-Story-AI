@@ -50,7 +50,7 @@ Ollama 기반 local LLM rewriter
 "llm": {
   "enabled": true,
   "used": true,
-  "model": "llama3.2:1b",
+  "model": "qwen3:4b-instruct",
   "ok": true,
   "error": null
 }

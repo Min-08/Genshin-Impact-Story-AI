@@ -14,11 +14,11 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from genshin_lore_db.search_engine.local_llm import DEFAULT_OLLAMA_MODEL
+from genshin_lore_db.search_engine.local_llm import DEFAULT_OLLAMA_MODEL, strip_thinking_blocks
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Install/check Ollama and pull the local Llama model.")
+    parser = argparse.ArgumentParser(description="Install/check Ollama and pull the default local QA model.")
     parser.add_argument("--install", action="store_true", help="Install Ollama with winget when ollama is missing.")
     parser.add_argument("--model", default=DEFAULT_OLLAMA_MODEL)
     parser.add_argument("--timeout", type=int, default=180)
@@ -57,7 +57,7 @@ def main() -> int:
     steps.append(list_result)
     chat_result = test_chat(args.model, timeout=60)
     steps.append(chat_result)
-    return finish(steps, ok=chat_result["ok"], message="Local Llama setup complete." if chat_result["ok"] else "Chat test failed.")
+    return finish(steps, ok=chat_result["ok"], message="Local QA model setup complete." if chat_result["ok"] else "Chat test failed.")
 
 
 def find_ollama() -> str | None:
@@ -124,14 +124,15 @@ def test_chat(model: str, *, timeout: int) -> dict[str, Any]:
     payload = {
         "model": model,
         "stream": False,
+        "think": False,
         "messages": [
-            {"role": "user", "content": "한국어로 '준비 완료'만 말해."},
+            {"role": "user", "content": "/no_think\n한국어로 '준비 완료'만 말해."},
         ],
         "options": {"temperature": 0.1},
     }
     request = urllib.request.Request(
         "http://127.0.0.1:11434/api/chat",
-        data=json.dumps(payload).encode("utf-8"),
+        data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
         headers={"Content-Type": "application/json"},
         method="POST",
     )
@@ -140,10 +141,11 @@ def test_chat(model: str, *, timeout: int) -> dict[str, Any]:
             data = json.loads(response.read().decode("utf-8"))
     except Exception as exc:  # noqa: BLE001
         return {"step": "chat_test", "ok": False, "error": str(exc)}
+    content = strip_thinking_blocks(str((data.get("message") or {}).get("content") or "")).strip()
     return {
         "step": "chat_test",
-        "ok": bool((data.get("message") or {}).get("content")),
-        "content": (data.get("message") or {}).get("content"),
+        "ok": bool(content),
+        "content": content,
     }
 
 
@@ -185,7 +187,7 @@ def manual_next_steps() -> list[str]:
     return [
         "Install Ollama from https://ollama.com/download or with winget install -e --id Ollama.Ollama.",
         f"Run: ollama pull {DEFAULT_OLLAMA_MODEL}",
-        "Retry: python scripts/setup_local_llama.py --model llama3.2:1b",
+        f"Retry: python scripts/setup_local_llm.py --model {DEFAULT_OLLAMA_MODEL}",
     ]
 
 

@@ -290,5 +290,197 @@
       "달의 세 여신"
     ],
     "confidence": "manual_seed"
+  },
+  {
+    "concept_id": "manual:istaroth",
+    "entity_type": "character_or_entity",
+    "primary_name": "이스타로트",
+    "aliases": {
+      "ko": [
+        "이스타로트",
+        "시간의 집정관",
+        "토코요노카미"
+      ],
+      "en": [
+        "Istaroth",
+        "Tokoyo Ookami",
+        "Ruler of Time"
+      ],
+      "ja": [
+        "イスタロト",
+        "常世大神",
+        "時間の執政"
+      ],
+      "zh-Hans": [
+        "伊斯塔露",
+        "常世大神",
+        "时间之执政"
+      ]
+    },
+    "related": [
+      "네 그림자",
+      "파네스",
+      "시간"
+    ],
+    "confidence": "manual_seed"
+  },
+  {
+    "concept_id": "manual:false_sky",
+    "entity_type": "motif",
+    "primary_name": "가짜 하늘",
+    "aliases": {
+      "ko": [
+        "가짜 하늘",
+        "거짓된 하늘",
+        "하늘은 가짜"
+      ],
+      "en": [
+        "false sky",
+        "fake sky",
+        "the sky is fake"
+      ],
+      "ja": [
+        "偽りの空",
+        "空は偽物"
+      ],
+      "zh-Hans": [
+        "虚假之天",
+        "天空是假的"
+      ]
+    },
+    "related": [
+      "천리",
+      "셀레스티아",
+      "강림자"
+    ],
+    "confidence": "manual_seed"
+  },
+  {
+    "concept_id": "manual:moon_sisters",
+    "entity_type": "lore_concept",
+    "primary_name": "달의 세 여신",
+    "aliases": {
+      "ko": [
+        "달의 세 여신",
+        "세 달의 여신",
+        "달의 자매"
+      ],
+      "en": [
+        "three moon sisters",
+        "moon sisters",
+        "three moons"
+      ],
+      "ja": [
+        "三人の月の女神",
+        "月の三姉妹",
+        "三つの月"
+      ],
+      "zh-Hans": [
+        "三月女神",
+        "月亮三姐妹",
+        "三个月亮"
+      ]
+    },
+    "related": [
+      "니벨룽겐",
+      "파네스",
+      "그림자"
+    ],
+    "confidence": "manual_seed"
+  },
+  {
+    "concept_id": "manual:divine_throne",
+    "entity_type": "lore_concept",
+    "primary_name": "신좌",
+    "aliases": {
+      "ko": [
+        "신좌",
+        "신의 자리",
+        "왕좌"
+      ],
+      "en": [
+        "divine throne",
+        "god's seat",
+        "throne"
+      ],
+      "ja": [
+        "神座",
+        "神の座",
+        "王座"
+      ],
+      "zh-Hans": [
+        "神座",
+        "神之座",
+        "王座"
+      ]
+    },
+    "related": [
+      "셀레스티아",
+      "천리",
+      "집정관"
+    ],
+    "confidence": "manual_seed"
+  },
+  {
+    "concept_id": "manual:primordial_dragon_king",
+    "entity_type": "lore_concept",
+    "primary_name": "원초의 용왕",
+    "aliases": {
+      "ko": [
+        "원초의 용왕",
+        "용왕",
+        "용족의 왕"
+      ],
+      "en": [
+        "Primordial Dragon King",
+        "Dragon King",
+        "king of the dragons"
+      ],
+      "ja": [
+        "原初の龍王",
+        "龍王",
+        "龍族の王"
+      ],
+      "zh-Hans": [
+        "原初龙王",
+        "龙王",
+        "龙族之王"
+      ]
+    },
+    "related": [
+      "니벨룽겐",
+      "용왕",
+      "일곱 용왕"
+    ],
+    "confidence": "manual_seed"
+  },
+  {
+    "concept_id": "manual:sinner",
+    "entity_type": "character_or_entity",
+    "primary_name": "죄인",
+    "aliases": {
+      "ko": [
+        "죄인",
+        "켄리아의 죄인"
+      ],
+      "en": [
+        "Sinner",
+        "The Sinner"
+      ],
+      "ja": [
+        "罪人",
+        "罪人の男"
+      ],
+      "zh-Hans": [
+        "罪人",
+        "那位罪人"
+      ]
+    },
+    "related": [
+      "켄리아",
+      "심연",
+      "카리베르트"
+    ],
+    "confidence": "manual_seed"
   }
 ]

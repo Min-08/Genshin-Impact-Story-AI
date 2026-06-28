@@ -12,8 +12,8 @@ from genshin_lore_db.io import write_json
 from genshin_lore_db.search_engine.engine import LoreSearchEngine
 from genshin_lore_db.search_engine.local_llm import DEFAULT_OLLAMA_MODEL
 from genshin_lore_db.search_engine.llm import build_reasoning_prompt
-from genshin_lore_db.search_engine.qa import answer_question
-from genshin_lore_db.search_engine.router import route_query
+from genshin_lore_db.search_engine.qa import answer_question, route_answer_query
+from genshin_lore_db.search_engine.terminal import run_terminal_qa
 
 
 def main() -> int:
@@ -22,14 +22,23 @@ def main() -> int:
 
     route_parser = subparsers.add_parser("route")
     route_parser.add_argument("query")
+    route_parser.add_argument("--no-llm", action="store_true", help="로컬 LLM semantic parser 없이 규칙/DB 기반 라우팅만 실행")
+    route_parser.add_argument("--model", default=DEFAULT_OLLAMA_MODEL, help="Ollama 모델 이름")
     route_parser.add_argument("--out", help="JSON 결과를 저장할 경로")
 
     answer_parser = subparsers.add_parser("answer")
     answer_parser.add_argument("query")
-    answer_parser.add_argument("--no-llm", action="store_true", help="로컬 Llama 없이 템플릿 답변만 생성")
+    answer_parser.add_argument("--no-llm", action="store_true", help="로컬 LLM 없이 템플릿 답변만 생성")
     answer_parser.add_argument("--model", default=DEFAULT_OLLAMA_MODEL, help="Ollama 모델 이름")
     answer_parser.add_argument("--out", help="JSON 결과를 저장할 경로")
     answer_parser.add_argument("--text", action="store_true", help="최종 답변 텍스트만 출력")
+
+    chat_parser = subparsers.add_parser("chat")
+    chat_parser.add_argument("--no-llm", action="store_true", help="로컬 LLM 재작성 없이 템플릿 답변만 출력")
+    chat_parser.add_argument("--no-route", action="store_true", help="질문 라우팅 상태 표시를 끔")
+    chat_parser.add_argument("--model", default=DEFAULT_OLLAMA_MODEL, help="Ollama 모델 이름")
+    chat_parser.add_argument("--json", action="store_true", help="최종 답변 대신 전체 JSON 결과를 출력")
+    chat_parser.add_argument("--once", help="대화형 루프 없이 질문 한 번만 실행하고 종료")
 
     for command in ["search", "investigate"]:
         sub = subparsers.add_parser(command)
@@ -43,8 +52,18 @@ def main() -> int:
         sub.add_argument("--prompt-out", help="investigate 결과에서 LLM 프롬프트 패키지를 저장할 경로")
 
     args = parser.parse_args()
+    if args.command == "chat":
+        return run_terminal_qa(
+            ROOT,
+            use_llm=not args.no_llm,
+            use_routing=not args.no_route,
+            model=args.model,
+            json_output=args.json,
+            once=args.once,
+        )
+
     if args.command == "route":
-        result = route_query(args.query).to_dict()
+        result = route_answer_query(ROOT, args.query, use_llm=not args.no_llm, model=args.model)
     elif args.command == "answer":
         result = answer_question(ROOT, args.query, use_llm=not args.no_llm, model=args.model)
     else:

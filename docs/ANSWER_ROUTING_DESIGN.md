@@ -9,6 +9,7 @@
 ```text
 검색엔진은 사실과 출처를 고정한다.
 AI는 라우트별로 허용된 범위 안에서만 문장화, 요약, 해석, 탐색 계획을 수행한다.
+질문 이해는 규칙 기반 라우터와 LLM 의미 파서를 동시에 사용하되, 최종 결정은 병합 정책과 validator가 통제한다.
 ```
 
 라우트별 핵심 원칙은 다음과 같다.
@@ -45,9 +46,14 @@ L5: AI 자체 추론
 ```mermaid
 flowchart TD
     A["User Query"] --> B["Query Normalizer"]
-    B --> C["Query Router"]
-    C --> D["Entity / Intent Resolver"]
-    D --> E["Route Execution Plan"]
+    B --> B1["Greeting / Chitchat Guard"]
+    B1 --> C["Rule-based Query Router"]
+    B1 --> C2["LLM Semantic Parser"]
+    B1 --> D["Entity / Intent Resolver"]
+    C --> M["Route Merge Policy"]
+    C2 --> M
+    D --> M
+    M --> E["Route Execution Plan"]
     E --> F["Retrieval / Reader Tools"]
     F --> G["Facts or Evidence Pack"]
     G --> H["Route Answer Writer"]
@@ -62,8 +68,11 @@ flowchart TD
 | 단계 | 책임 | AI 사용 여부 |
 | --- | --- | --- |
 | Query Normalizer | 공백, 언어, 따옴표, 약칭 정리 | 없음 |
-| Query Router | 라우트, 깊이, 위험도 결정 | 초기에는 규칙, 이후 보조 LLM 가능 |
+| Greeting / Chitchat Guard | 인사말, 빈 질문, 일반 잡담을 검색 전에 차단 | 없음 |
+| Rule-based Query Router | 키워드, exact lookup, 위험 신호 기반 1차 라우트 결정 | 없음 |
+| LLM Semantic Parser | 자연어 의도, 요청 형식, 분석 깊이, 후속 질문 맥락 파악 | 보조 사용 |
 | Entity / Intent Resolver | 엔티티 후보, 문서 후보, 의도 확정 | 제한적 가능 |
+| Route Merge Policy | 규칙, 엔티티 resolve, LLM parse를 병합해 최종 RouteDecision 생성 | 없음 |
 | Route Execution Plan | 어떤 도구를 어떤 순서로 호출할지 결정 | `research`에서만 적극 사용 |
 | Retrieval / Reader Tools | 검색, 원문 읽기, 다국어 비교 | 없음 |
 | Facts or Evidence Pack | 구조화된 사실 또는 근거 묶음 생성 | 없음 |
@@ -1191,7 +1200,106 @@ analysis:
 관계/의미/근거 신호가 있거나 기본 fallback일 때
 ```
 
-### 9.2 다음 단계 라우터
+### 9.2 규칙 라우터와 LLM 의미 파서 동시 사용
+
+다음 단계에서는 규칙 기반 라우터를 LLM으로 대체하지 않고, 별도의 LLM semantic parser를 병렬로 호출한다.
+
+목표:
+
+```text
+규칙 라우터:
+빠르고 재현 가능한 route 후보, exact lookup, 위험 신호, guard 처리
+
+LLM semantic parser:
+자연어 의도, 숨은 요청 형식, 질문 깊이, 후속 질문 맥락, 모호한 표현 해석
+
+병합 정책:
+두 결과를 비교해 최종 RouteDecision을 만들고, 충돌 시 deterministic 신호와 안전 규칙을 우선한다.
+```
+
+처리 순서:
+
+```text
+1. query_normalize
+2. greeting_or_chitchat_guard
+3. exact_entity_lookup
+4. rule_based_route
+5. llm_semantic_parse
+6. merge_route_decision
+7. route 실행
+```
+
+LLM semantic parser 출력 계약:
+
+```json
+{
+  "schema_version": "semantic_parse.v0.1",
+  "route": "basic_lookup",
+  "intent": "character_basic_info",
+  "entities": [
+    {
+      "surface": "아야카",
+      "content_type_hint": "avatar",
+      "confidence": 0.88
+    }
+  ],
+  "requested_format": "paragraph",
+  "depth": 0,
+  "is_greeting": false,
+  "is_followup": false,
+  "needs_official_sources": true,
+  "risk_flags": [],
+  "confidence": 0.86,
+  "reason": "단일 캐릭터에 대한 자연어 기본 정보 요청입니다."
+}
+```
+
+허용되는 `requested_format`:
+
+```text
+paragraph
+bullet
+table
+short
+long
+```
+
+병합 우선순위:
+
+```text
+1. 인사말/잡담 guard가 참이면 검색과 LLM 라우팅 결과를 사용하지 않는다.
+2. exact entity lookup이 높은 신뢰도로 성공하면 엔티티는 규칙 결과를 우선한다.
+3. LLM이 DB에 없는 엔티티를 새로 만들면 폐기한다.
+4. research/analysis 승격 신호는 규칙과 LLM 중 하나라도 강하게 감지하면 보수적으로 승격할 수 있다.
+5. basic_lookup 신호가 강하고 연구/관계 신호가 없으면 단일 엔티티 질문은 basic_lookup을 우선한다.
+6. requested_format은 LLM 결과를 사용할 수 있지만, 사용자 명시 표현이 있으면 규칙 결과를 우선한다.
+7. LLM parse 실패, timeout, JSON 파싱 실패 시 기존 규칙 라우터 결과만 사용한다.
+```
+
+예:
+
+```text
+아야카
+규칙: 단일 캐릭터 exact hit
+LLM: character_basic_info
+최종: basic_lookup / character_basic_info / paragraph
+
+아야카에 대해서 알려줘
+규칙: 캐릭터명 + 알려줘
+LLM: character_basic_info
+최종: basic_lookup / character_basic_info / paragraph
+
+세계수 기억 조작 떡밥 다시 봐줘
+규칙: 떡밥, 다시 봐줘
+LLM: research_or_analysis
+최종: research 또는 analysis
+
+안녕
+guard: greeting
+최종: 검색 실행 안 함
+```
+
+### 9.3 다음 단계 라우터
 
 휴리스틱 이후에는 `RouteDecision` 생성을 다음처럼 확장한다.
 
@@ -1202,7 +1310,8 @@ analysis:
 4. workspace current mode
 5. user default depth
 6. ambiguity score
-7. optional small LLM classifier
+7. LLM semantic parser result
+8. merge policy confidence
 ```
 
 라우트 점수 예시:
@@ -1220,7 +1329,7 @@ analysis:
 }
 ```
 
-### 9.3 모호성 처리
+### 9.4 모호성 처리
 
 모호한 경우에는 질문하지 않고 낮은 비용 라우트에서 시작하되, 부족하면 승격한다.
 
@@ -1274,8 +1383,11 @@ get_graph_paths(source_entity: str, target_entity: str, max_hops: int = 3) -> li
 
 ## 11. LLM 사용 정책
 
-| Route | LLM 역할 | temperature | 실패 시 |
+라우팅 전 단계의 LLM은 답변을 생성하지 않는다. semantic parser는 짧은 JSON만 반환하며, temperature는 0에 가깝게 두고 timeout과 fallback을 반드시 둔다.
+
+| 단계/Route | LLM 역할 | temperature | 실패 시 |
 | --- | --- | --- | --- |
+| `semantic_parse` | 자연어 의도와 요청 형식 JSON 추출 | 0-0.1 | 규칙 라우터만 사용 |
 | `basic_lookup` | 템플릿 문장 다듬기 | 0.1-0.2 | 템플릿 반환 |
 | `summary` | 범위 내 요약 | 0.2-0.3 | 구조 요약 반환 |
 | `analysis` | 근거 기반 해석 | 0.2-0.35 | Evidence Pack 요약 반환 |

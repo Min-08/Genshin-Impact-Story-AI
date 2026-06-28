@@ -6,9 +6,22 @@ from typing import Any
 from genshin_lore_db.normalize import clean_text
 
 
-ROUTE_MODES = {"basic_lookup", "summary", "analysis", "research"}
+ROUTE_MODES = {"basic_lookup", "summary", "analysis", "research", "chitchat"}
+
+GREETING_TERMS = {
+    "안녕",
+    "안녕하세요",
+    "안뇽",
+    "ㅎㅇ",
+    "하이",
+    "hi",
+    "hello",
+}
 
 GAME_INFO_TERMS = {
+    "기본정보",
+    "기본 정보",
+    "정보",
     "효과",
     "옵션",
     "스탯",
@@ -20,6 +33,9 @@ GAME_INFO_TERMS = {
     "무기",
     "캐릭터",
     "레벨",
+    "별자리",
+    "운명의 자리",
+    "스킬",
     "어떻게 얻",
     "어디서 얻",
 }
@@ -81,6 +97,14 @@ def route_query(
     lowered = text.casefold()
     workspace_context = workspace_context or {}
     user_settings = user_settings or {}
+
+    if is_greeting_query(text):
+        return RouteDecision(
+            mode="chitchat",
+            confidence=0.98,
+            signals=["guard:greeting"],
+            reason="일반 인사말이므로 검색이나 정답형 QA로 보내지 않습니다.",
+        )
 
     if user_settings.get("default_depth") == "research":
         return RouteDecision(
@@ -153,3 +177,12 @@ def keyword_hits(text: str, keywords: set[str]) -> list[str]:
 def looks_like_followup(text: str) -> bool:
     followup_terms = ["그럼", "그러면", "이어서", "아까", "그 관점", "반대로", "다시", "그건"]
     return any(term in text for term in followup_terms) or len(text.split()) <= 8
+
+
+def is_greeting_query(message: str) -> bool:
+    text = clean_text(message).casefold()
+    text = text.strip(" \t\r\n.!?。！？~")
+    if not text:
+        return False
+    compact = "".join(ch for ch in text if ch.isalnum() or "\u3131" <= ch <= "\u318e")
+    return compact in GREETING_TERMS
