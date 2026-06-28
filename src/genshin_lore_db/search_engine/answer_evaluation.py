@@ -7,6 +7,7 @@ from typing import Any
 
 from genshin_lore_db.io import read_json, utc_now
 from genshin_lore_db.normalize import clean_text
+from genshin_lore_db.search_engine.conversation import ConversationState
 from genshin_lore_db.search_engine.local_llm import DEFAULT_OLLAMA_MODEL
 from genshin_lore_db.search_engine.qa import answer_question
 
@@ -19,6 +20,10 @@ METRIC_NAMES = [
     "item_id_match",
     "required_fragments_present",
     "forbidden_fragments_absent",
+    "requested_style_match",
+    "unsupported_reason_match",
+    "context_used_match",
+    "plan_intent_match",
     "validation_ok",
     "case_passed",
 ]
@@ -39,7 +44,7 @@ def evaluate_answer_engine(
     aggregate = aggregate_metrics(cases)
     thresholds = evaluation_set.get("thresholds") or {}
     return {
-        "version": "0.6.0",
+        "version": str(evaluation_set.get("version") or "0.6.0"),
         "evaluated_at": utc_now(),
         "mode": "llm" if use_llm else "no_llm",
         "model": model if use_llm else None,
@@ -59,8 +64,10 @@ def evaluate_answer_case(
     model: str,
 ) -> dict[str, Any]:
     query = str(case["query"])
-    result = answer_question(root, query, use_llm=use_llm, model=model)
+    conversation_state = conversation_state_from_history(root, case.get("history") or [], use_llm=use_llm, model=model)
+    result = answer_question(root, query, use_llm=use_llm, model=model, conversation_state=conversation_state)
     route = result.get("route") or {}
+    plan = route.get("answer_plan") if isinstance(route.get("answer_plan"), dict) else {}
     final_answer = str(result.get("final_answer") or "")
 
     required_fragments = [str(value) for value in case.get("required_fragments") or []]
@@ -84,6 +91,18 @@ def evaluate_answer_case(
         "item_id_match": expected_matches(case, "expected_item_id", result.get("item_id")),
         "required_fragments_present": not missing_required,
         "forbidden_fragments_absent": not present_forbidden,
+        "requested_style_match": expected_matches(
+            case,
+            "expected_requested_style",
+            result.get("requested_style") or route.get("requested_style"),
+        ),
+        "unsupported_reason_match": expected_matches(case, "expected_unsupported_reason", route.get("unsupported_reason")),
+        "context_used_match": expected_bool_matches(case, "expected_context_used", route.get("context_used")),
+        "plan_intent_match": expected_matches(
+            case,
+            "expected_plan_intent",
+            plan.get("intent") or route.get("intent"),
+        ),
         "validation_ok": bool((result.get("validation") or {}).get("ok")),
     }
     checks["case_passed"] = all(checks.values())
@@ -98,12 +117,20 @@ def evaluate_answer_case(
             "content_type": case.get("expected_content_type"),
             "canonical_id": case.get("expected_canonical_id"),
             "item_id": case.get("expected_item_id"),
+            "requested_style": case.get("expected_requested_style"),
+            "unsupported_reason": case.get("expected_unsupported_reason"),
+            "context_used": case.get("expected_context_used"),
+            "plan_intent": case.get("expected_plan_intent"),
         },
         "actual": {
             "intent": result.get("intent"),
             "content_type": result.get("content_type"),
             "canonical_id": result.get("canonical_id"),
             "item_id": result.get("item_id"),
+            "requested_style": result.get("requested_style") or route.get("requested_style"),
+            "unsupported_reason": route.get("unsupported_reason"),
+            "context_used": route.get("context_used"),
+            "plan_intent": plan.get("intent") or route.get("intent"),
             "validation": result.get("validation"),
             "llm": result.get("llm"),
         },
@@ -113,6 +140,46 @@ def evaluate_answer_case(
         "passed": checks["case_passed"],
         "final_answer": final_answer,
     }
+
+
+def conversation_state_from_history(
+    root: Path,
+    history: list[Any],
+    *,
+    use_llm: bool,
+    model: str,
+) -> ConversationState:
+    state = ConversationState()
+    for turn in history:
+        if isinstance(turn, str):
+            historical_result = answer_question(root, turn, use_llm=use_llm, model=model, conversation_state=state)
+            state.update_from_result(historical_result)
+            continue
+        if not isinstance(turn, dict):
+            continue
+        if isinstance(turn.get("state"), dict):
+            apply_state_patch(state, turn["state"])
+        if isinstance(turn.get("active_entity"), dict):
+            state.active_entity = dict(turn["active_entity"])
+        query = turn.get("user") or turn.get("query")
+        if query:
+            historical_result = answer_question(root, str(query), use_llm=use_llm, model=model, conversation_state=state)
+            state.update_from_result(historical_result)
+    return state
+
+
+def apply_state_patch(state: ConversationState, patch: dict[str, Any]) -> None:
+    for key in [
+        "active_entity",
+        "active_topic",
+        "last_route",
+        "last_intent",
+        "last_answer_style",
+        "last_sources",
+        "turn_count",
+    ]:
+        if key in patch:
+            setattr(state, key, patch[key])
 
 
 def aggregate_metrics(cases: list[dict[str, Any]]) -> dict[str, Any]:
@@ -137,6 +204,15 @@ def expected_matches(case: dict[str, Any], key: str, actual: Any) -> bool:
     if expected is None:
         return actual is None
     return str(expected) == str(actual)
+
+
+def expected_bool_matches(case: dict[str, Any], key: str, actual: Any) -> bool:
+    if key not in case:
+        return True
+    expected = case.get(key)
+    if expected is None:
+        return actual is None
+    return bool(expected) is bool(actual)
 
 
 def compact_for_match(value: str) -> str:

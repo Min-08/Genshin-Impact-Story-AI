@@ -1,0 +1,9 @@
+[project]
+name = "project-amber-db-builder"
+version = "0.6.0"
+description = "Standalone Project Amber crawler and SQLite DB builder"
+requires-python = ">=3.11"
+dependencies = []
+
+[tool.setuptools.packages.find]
+where = ["src"]

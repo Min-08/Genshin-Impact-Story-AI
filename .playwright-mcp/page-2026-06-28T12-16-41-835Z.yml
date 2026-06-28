@@ -1,0 +1,123 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e5]:
+      - img [ref=e6]
+      - generic [ref=e7]: Aurora
+      - generic [ref=e8]: 원신 스토리 추적 및 혼원 연구 시스템
+    - button "새 연구 시작" [ref=e9] [cursor=pointer]:
+      - img [ref=e10]
+      - generic [ref=e12]: 새 연구 시작
+    - generic [ref=e13]:
+      - generic [ref=e14]:
+        - generic [ref=e15]: 연구 기록
+        - img [ref=e16]
+      - generic [ref=e18]:
+        - generic [ref=e19]: 오늘
+        - button "Celestia의 진짜 목적은?" [ref=e20] [cursor=pointer]:
+          - img [ref=e21]
+          - generic [ref=e23]: Celestia의 진짜 목적은?
+          - img [ref=e24]
+        - button "Teyvat 대륙의 잃어버린 역사" [ref=e28] [cursor=pointer]:
+          - img [ref=e29]
+          - generic [ref=e31]: Teyvat 대륙의 잃어버린 역사
+        - button "Focalors와 물의 심판 추구성" [ref=e32] [cursor=pointer]:
+          - img [ref=e33]
+          - generic [ref=e35]: Focalors와 물의 심판 추구성
+      - generic [ref=e36]:
+        - generic [ref=e37]: 어제
+        - button "카엔리아 왕국의 멸망 원인" [ref=e38] [cursor=pointer]:
+          - img [ref=e39]
+          - generic [ref=e41]: 카엔리아 왕국의 멸망 원인
+        - button "여행자의 정체(사진) 정체 추측" [ref=e42] [cursor=pointer]:
+          - img [ref=e43]
+          - generic [ref=e45]: 여행자의 정체(사진) 정체 추측
+      - generic [ref=e46]:
+        - generic [ref=e47]: 지난 7일
+        - button "Primordial One의 정체" [ref=e48] [cursor=pointer]:
+          - img [ref=e49]
+          - generic [ref=e51]: Primordial One의 정체
+        - button "하늘의 못과 티바트의 인간 고리" [ref=e52] [cursor=pointer]:
+          - img [ref=e53]
+          - generic [ref=e55]: 하늘의 못과 티바트의 인간 고리
+        - button "마안별 헤이모리 숨겨진 목적" [ref=e56] [cursor=pointer]:
+          - img [ref=e57]
+          - generic [ref=e59]: 마안별 헤이모리 숨겨진 목적
+      - generic [ref=e60]:
+        - generic [ref=e61]: 지난 30일
+        - button "Celestia의 별 바다와 관계" [ref=e62] [cursor=pointer]:
+          - img [ref=e63]
+          - generic [ref=e65]: Celestia의 별 바다와 관계
+        - button "7신의 권능 융합 연구" [ref=e66] [cursor=pointer]:
+          - img [ref=e67]
+          - generic [ref=e69]: 7신의 권능 융합 연구
+    - generic [ref=e70]:
+      - generic [ref=e71]:
+        - img [ref=e73]
+        - generic [ref=e74]:
+          - generic [ref=e75]: 연구자
+          - button "연구자 모드" [ref=e76] [cursor=pointer]:
+            - text: 연구자 모드
+            - img [ref=e77]
+      - button "설정" [ref=e79] [cursor=pointer]:
+        - img [ref=e80]
+  - main [ref=e83]:
+    - generic [ref=e84]:
+      - generic [ref=e85]:
+        - generic [ref=e86]:
+          - strong [ref=e87]: You
+          - generic [ref=e88]: 오전 11:32
+        - paragraph [ref=e89]: Celestia의 진짜 목적은 무엇일까? 티바트의 권능과 연결지어 설명해줘.
+      - generic [ref=e91]:
+        - img [ref=e93]
+        - strong [ref=e94]: Aurora AI
+        - generic [ref=e95]: 오전 11:32
+      - generic [ref=e96]:
+        - generic [ref=e99]:
+          - strong [ref=e100]: DB 검색 중
+          - paragraph [ref=e101]: 관련 데이터 소스 탐색 중...
+        - generic [ref=e104]:
+          - strong [ref=e105]: 문헌 대조 중
+          - paragraph [ref=e106]: 신뢰 문헌 및 정합성 검토 중...
+        - generic [ref=e109]:
+          - strong [ref=e110]: 추론 구조 생성 중
+          - paragraph [ref=e111]: 핵심 가설과 논리 구조 정리 중...
+      - generic [ref=e112]:
+        - heading "연구 진행 상황" [level=2] [ref=e113]
+        - strong [ref=e117]: 관련 키워드 데이터베이스 검색 중
+        - strong [ref=e122]: 신뢰 가능한 문헌 및 기록 선별 중
+        - strong [ref=e127]: 핵심 개념 및 상관 관계 분석 중
+        - strong [ref=e132]: 가설 구조 및 논거 생성 준비 중
+      - generic [ref=e134]:
+        - heading "검색된 주요 출처 (3)" [level=2] [ref=e135]
+        - generic [ref=e136]:
+          - article [ref=e137]:
+            - generic [ref=e138]: 데이터베이스
+            - strong [ref=e139]: Celestia 운영 기록 · 관리 프로토콜
+            - paragraph [ref=e140]: 천상 관리청 비공개 아카이브
+            - emphasis [ref=e141]: 신뢰도 높음
+          - article [ref=e142]:
+            - generic [ref=e143]: 문헌
+            - strong [ref=e144]: 하늘과 땅의 권능 질서 제3권
+            - paragraph [ref=e145]: 바르카 연대기 · 제9장
+            - emphasis [ref=e146]: 신뢰도 높음
+          - article [ref=e147]:
+            - generic [ref=e148]: 기록
+            - strong [ref=e149]: Focalors 재판 기록 원본
+            - paragraph [ref=e150]: 심판정 공식 기록 보관소
+            - emphasis [ref=e151]: 신뢰도 중간
+          - button "다음 출처" [ref=e152] [cursor=pointer]:
+            - img [ref=e153]
+      - generic [ref=e155]:
+        - img [ref=e156]
+        - text: 연구 결과는 사실 확인이 필요한 가설을 포함할 수 있습니다.
+      - generic [ref=e158]:
+        - generic [ref=e159]: 메시지를 입력하세요... (Enter로 전송)
+        - generic [ref=e160]:
+          - button "첨부" [ref=e161] [cursor=pointer]:
+            - img [ref=e162]
+          - generic [ref=e164]:
+            - button "옵션" [ref=e165] [cursor=pointer]:
+              - img [ref=e166]
+            - button "생성 중단" [ref=e168] [cursor=pointer]:
+              - img [ref=e169]
+              - text: 생성 중단

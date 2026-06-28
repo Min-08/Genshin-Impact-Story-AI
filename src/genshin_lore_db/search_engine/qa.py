@@ -9,7 +9,9 @@ from typing import Any
 from genshin_lore_db.io import read_json
 from genshin_lore_db.normalize import clean_text
 from genshin_lore_db.pipeline.project_amber_v2 import search_project_amber_v2
+from genshin_lore_db.search_engine.answer_plan import AnswerPlan, normalize_answer_plan
 from genshin_lore_db.search_engine.aliases import normalize_alias
+from genshin_lore_db.search_engine.conversation import ConversationState
 from genshin_lore_db.search_engine.local_llm import DEFAULT_OLLAMA_MODEL, rewrite_answer_with_ollama
 from genshin_lore_db.search_engine.router import is_greeting_query, route_query
 from genshin_lore_db.search_engine.semantic import parse_query_semantics_with_ollama
@@ -52,6 +54,12 @@ UNSUPPORTED_ANSWER_TERMS = {
     "나선비경",
     "공략",
 }
+
+STORY_SUMMARY_TERMS = {"스토리", "줄거리", "마신임무", "임무", "퀘스트", "전설임무", "내용"}
+BRIEF_STYLE_TERMS = {"요약", "간단", "짧게", "핵심만"}
+DETAIL_STYLE_TERMS = {"자세히", "전체", "전부", "R1", "R2", "R3", "R4", "R5", "r1", "r2", "r3", "r4", "r5", "제련별", "수치"}
+RAW_STYLE_TERMS = {"원문", "raw", "RAW", "그대로"}
+EVIDENCE_STYLE_TERMS = {"근거", "출처", "source", "evidence"}
 
 ELEMENT_LABELS = {
     "Fire": "불",
@@ -111,6 +119,7 @@ def answer_question(
     model: str = DEFAULT_OLLAMA_MODEL,
     db_path: Path | None = None,
     language: str = DEFAULT_LANGUAGE,
+    conversation_state: ConversationState | None = None,
 ) -> dict[str, Any]:
     root_path = Path(root).resolve()
     search_db = db_path or root_path / "data" / "processed" / "search_v2" / "project_amber_search.sqlite3"
@@ -121,22 +130,27 @@ def answer_question(
         model=model,
         db_path=search_db,
         language=language,
+        conversation_state=conversation_state,
     )
     if route.get("mode") == "chitchat":
         return small_talk_answer(query, search_db, route=route)
+    if route.get("mode") == "source_reader" or route.get("requested_style") == "evidence":
+        return evidence_answer(query, search_db, route=route, conversation_state=conversation_state)
     if route.get("mode") != "basic_lookup":
         return unsupported_answer(query, search_db, route=route)
     if not should_attempt_basic_lookup(query, route=route):
         return unsupported_answer(query, search_db, route=route)
-    resolution = None if contains_unsupported_answer_term(query) else resolve_qa_target(search_db, query, language=language)
+    lookup_query = str(route.get("resolved_query") or query)
+    resolution = None if contains_unsupported_answer_term(query) else resolve_qa_target(search_db, lookup_query, language=language)
     if not resolution:
         return unsupported_answer(query, search_db, route=route)
 
     raw_path = Path(resolution["raw_ref"])
     raw_record = read_json(raw_path)
     requested_format = str(route.get("requested_format") or requested_format_for_query(query))
-    facts = build_facts(raw_record, resolution, query=query)
-    draft_answer = draft_answer_from_facts(facts, requested_format=requested_format)
+    requested_style = str(route.get("requested_style") or requested_style_for_query(query))
+    facts = build_facts(raw_record, resolution, query=lookup_query)
+    draft_answer = draft_answer_from_facts(facts, requested_format=requested_format, requested_style=requested_style)
     llm_state: dict[str, Any] = {
         "enabled": use_llm,
         "used": False,
@@ -144,7 +158,7 @@ def answer_question(
         "ok": False,
         "error": None,
     }
-    validation = validate_answer(draft_answer, facts, draft_answer)
+    validation = validate_answer(draft_answer, facts, draft_answer, requested_style=requested_style)
     final_answer = draft_answer
 
     if use_llm:
@@ -157,7 +171,7 @@ def answer_question(
         )
         if llm_result.get("ok"):
             candidate_answer = str(llm_result.get("content") or "").strip()
-            llm_validation = validate_answer(candidate_answer, facts, draft_answer)
+            llm_validation = validate_answer(candidate_answer, facts, draft_answer, requested_style=requested_style)
             llm_state["validation"] = llm_validation
             if llm_validation["ok"]:
                 final_answer = candidate_answer
@@ -169,10 +183,11 @@ def answer_question(
                     "type": "validation_failed",
                     "message": "; ".join(llm_validation["reasons"]),
                 }
-                validation = validate_answer(final_answer, facts, draft_answer)
+                validation = validate_answer(final_answer, facts, draft_answer, requested_style=requested_style)
 
     return {
         "query": query,
+        "resolved_query": lookup_query,
         "canonical_id": resolution.get("canonical_id"),
         "content_type": facts.get("content_type") or resolution.get("content_type"),
         "item_id": facts.get("item_id") or resolution.get("item_id"),
@@ -185,6 +200,8 @@ def answer_question(
         "sources": facts["sources"],
         "route": route,
         "requested_format": requested_format,
+        "requested_style": requested_style,
+        "answer_plan": route.get("answer_plan"),
         "semantic_parse": route.get("semantic_parse"),
     }
 
@@ -197,35 +214,98 @@ def route_answer_query(
     model: str = DEFAULT_OLLAMA_MODEL,
     db_path: Path | None = None,
     language: str = DEFAULT_LANGUAGE,
+    conversation_state: ConversationState | None = None,
 ) -> dict[str, Any]:
     root_path = Path(root).resolve()
     search_db = db_path or root_path / "data" / "processed" / "search_v2" / "project_amber_search.sqlite3"
-    rule = route_query(query).to_dict()
+    context = resolve_conversation_context(query, conversation_state)
+    effective_query = str(context.get("resolved_query") or query)
+    rule = route_query(effective_query).to_dict()
     requested_format = requested_format_for_query(query)
-    semantic_state = semantic_parse_state(query, use_llm=use_llm, model=model)
+    requested_style = requested_style_for_query(query)
+    if context.get("requested_style"):
+        requested_style = str(context["requested_style"])
 
-    if rule.get("mode") == "chitchat" or semantic_is_greeting(semantic_state):
+    if rule.get("mode") == "chitchat":
         route = {
             "mode": "chitchat",
             "confidence": 0.98,
             "signals": ["guard:greeting"],
             "reason": "일반 인사말이므로 검색이나 정답형 QA로 보내지 않습니다.",
         }
-        route.update(
-            {
-                "intent": "small_talk",
-                "requested_format": requested_format,
-                "semantic_parse": semantic_state,
-            }
+        plan = AnswerPlan(route="chitchat", intent="small_talk", requested_style=requested_style, confidence=0.98, parser="deterministic")
+        return finalize_route(
+            route,
+            intent="small_talk",
+            requested_format=requested_format,
+            requested_style=requested_style,
+            plan=plan,
+            semantic_state=semantic_parse_state("", use_llm=False, model=model),
+            context=context,
         )
-        return route
 
-    has_relation_or_research = rule.get("mode") in {"summary", "research"} or any(
+    if contains_unsupported_answer_term(effective_query):
+        route = {
+            "mode": "unsupported",
+            "confidence": 0.96,
+            "signals": ["guard:unsupported_strategy"],
+            "reason": "추천, 티어, 세팅, 나선비경, 공략 요청은 현재 공식 DB 정답형 조회 범위가 아닙니다.",
+        }
+        plan = AnswerPlan(
+            route="unsupported",
+            intent="guide_or_meta_request",
+            requested_style=requested_style,
+            unsupported_reason="unofficial_strategy_request",
+            confidence=0.96,
+            parser="deterministic",
+            context_reference=context.get("context_reference"),
+            context_used=bool(context.get("context_used")),
+        )
+        return finalize_route(
+            route,
+            intent="guide_or_meta_request",
+            requested_format=requested_format,
+            requested_style=requested_style,
+            plan=plan,
+            semantic_state=semantic_parse_state("", use_llm=False, model=model),
+            context=context,
+        )
+
+    if context.get("route") == "source_reader":
+        route = {
+            "mode": "source_reader",
+            "confidence": 0.88,
+            "signals": ["context:last_answer", "style:evidence"],
+            "reason": "직전 답변의 출처나 근거를 요청한 후속 질문으로 분류했습니다.",
+        }
+        plan = AnswerPlan(
+            route="source_reader",
+            intent="show_evidence",
+            requested_style="evidence",
+            detail_level="medium",
+            context_reference="last_answer",
+            context_used=True,
+            needs_evidence=True,
+            confidence=0.88,
+            parser="deterministic",
+        )
+        return finalize_route(
+            route,
+            intent="show_evidence",
+            requested_format=requested_format,
+            requested_style="evidence",
+            plan=plan,
+            semantic_state=semantic_parse_state("", use_llm=False, model=model),
+            context=context,
+        )
+
+    has_story_summary = looks_like_story_summary(effective_query)
+    has_relation_or_research = rule.get("mode") in {"research"} or any(
         str(signal).startswith("relation:") for signal in rule.get("signals") or []
     )
-    allow_exact_lookup = not contains_unsupported_answer_term(query) and not has_relation_or_research
-    resolution = resolve_qa_target(search_db, query, language=language) if allow_exact_lookup else None
-    intent = classify_lookup_intent(query, resolution)
+    allow_exact_lookup = not has_relation_or_research and not has_story_summary
+    resolution = resolve_qa_target(search_db, effective_query, language=language) if allow_exact_lookup else None
+    intent = classify_lookup_intent(effective_query, resolution)
     if resolution and not has_relation_or_research:
         route = {
             "mode": "basic_lookup",
@@ -233,40 +313,267 @@ def route_answer_query(
             "signals": [*list(rule.get("signals") or []), f"exact_lookup:{resolution.get('content_type')}", f"intent:{intent}"],
             "reason": "지원되는 공식 데이터 엔티티가 정확히 확인되어 정답형 조회로 분류했습니다.",
         }
-    elif not has_relation_or_research and (semantic_route := semantic_route_candidate(semantic_state)):
-        route = semantic_route
+        plan = AnswerPlan(
+            route="basic_lookup",
+            intent=intent,
+            requested_style=requested_style,
+            detail_level=detail_level_for_style(requested_style),
+            context_reference=context.get("context_reference"),
+            context_used=bool(context.get("context_used")),
+            confidence=float(route["confidence"]),
+            parser="deterministic",
+        )
+        return finalize_route(
+            route,
+            intent=intent,
+            requested_format=requested_format,
+            requested_style=requested_style,
+            plan=plan,
+            semantic_state=semantic_parse_state("", use_llm=False, model=model),
+            context=context,
+            resolution=resolution,
+            resolved_query=effective_query,
+        )
+
+    if has_story_summary:
+        story_resolution = resolve_qa_target(search_db, effective_query, language=language)
+        route = {
+            "mode": "summary",
+            "confidence": max(float(rule.get("confidence") or 0.0), 0.78),
+            "signals": [*list(rule.get("signals") or []), "summary_scope:story"],
+            "reason": "스토리나 임무 범위 요약 요청으로 분류했습니다.",
+        }
+        plan = AnswerPlan(
+            route="summary",
+            intent=summary_intent_for_query(effective_query, story_resolution),
+            entities=entities_from_resolution(story_resolution),
+            requested_style=requested_style,
+            detail_level=detail_level_for_style(requested_style),
+            context_reference=context.get("context_reference"),
+            context_used=bool(context.get("context_used")),
+            unsupported_reason="route_not_implemented",
+            confidence=float(route["confidence"]),
+            parser="deterministic",
+        )
+        return finalize_route(
+            route,
+            intent=plan.intent,
+            requested_format=requested_format,
+            requested_style=requested_style,
+            plan=plan,
+            semantic_state=semantic_parse_state("", use_llm=False, model=model),
+            context=context,
+            resolution=story_resolution,
+            resolved_query=effective_query,
+            unsupported_reason="route_not_implemented",
+        )
+
+    semantic_state = semantic_parse_state(effective_query, use_llm=use_llm, model=model)
+    if semantic_is_greeting(semantic_state):
+        route = {
+            "mode": "chitchat",
+            "confidence": 0.98,
+            "signals": ["guard:greeting"],
+            "reason": "일반 인사말이므로 검색이나 정답형 QA로 보내지 않습니다.",
+        }
+        plan = AnswerPlan(route="chitchat", intent="small_talk", requested_style=requested_style, confidence=0.98, parser="llm")
+        return finalize_route(
+            route,
+            intent="small_talk",
+            requested_format=requested_format,
+            requested_style=requested_style,
+            plan=plan,
+            semantic_state=semantic_state,
+            context=context,
+        )
+
+    semantic_plan = normalize_answer_plan((semantic_state.get("parse") if isinstance(semantic_state, dict) else None), parser="llm")
+    if not has_relation_or_research and semantic_plan and semantic_plan.route in {"basic_lookup", "summary", "analysis", "research"}:
+        route = semantic_route_candidate(semantic_state) or dict(rule)
+        if semantic_plan.route != "basic_lookup":
+            semantic_plan.unsupported_reason = semantic_plan.unsupported_reason or "route_not_implemented"
+        return finalize_route(
+            route,
+            intent=semantic_plan.intent or intent,
+            requested_format=requested_format,
+            requested_style=semantic_plan.requested_style or requested_style,
+            plan=semantic_plan,
+            semantic_state=semantic_state,
+            context=context,
+            resolved_query=effective_query,
+            unsupported_reason=semantic_plan.unsupported_reason,
+        )
     else:
         route = dict(rule)
 
-    route.update(
-        {
-            "intent": intent,
-            "requested_format": requested_format,
-            "semantic_parse": semantic_state,
-        }
+    fallback_reason = "route_not_implemented" if route.get("mode") in {"summary", "analysis", "research"} else None
+    plan = AnswerPlan(
+        route=str(route.get("mode") or "analysis"),
+        intent=intent,
+        requested_style=requested_style,
+        detail_level=detail_level_for_style(requested_style),
+        context_reference=context.get("context_reference"),
+        context_used=bool(context.get("context_used")),
+        unsupported_reason=fallback_reason,
+        confidence=float(route.get("confidence") or 0.0),
+        parser="deterministic_fallback",
     )
-    if resolution:
-        route["entities"] = [
-            {
-                "surface": resolution.get("title"),
-                "canonical_id": resolution.get("canonical_id"),
-                "content_type": resolution.get("content_type"),
-                "confidence": 1.0,
-            }
-        ]
-    return route
+    return finalize_route(
+        route,
+        intent=intent,
+        requested_format=requested_format,
+        requested_style=requested_style,
+        plan=plan,
+        semantic_state=semantic_state,
+        context=context,
+        resolved_query=effective_query,
+        unsupported_reason=fallback_reason,
+    )
 
 
 def should_attempt_basic_lookup(query: str, *, route: dict[str, Any] | None = None) -> bool:
     route_data = route or route_query(query).to_dict()
     mode = str(route_data.get("mode") or "")
     signals = [str(signal) for signal in route_data.get("signals") or []]
-    if mode in {"summary", "research", "chitchat"}:
+    if mode in {"summary", "research", "chitchat", "unsupported", "source_reader"}:
         return False
     if mode == "analysis" and any(signal.startswith("relation:") for signal in signals):
         return False
     normalized = normalize_alias(query)
     return not contains_unsupported_answer_term(query)
+
+
+def finalize_route(
+    route: dict[str, Any],
+    *,
+    intent: str | None,
+    requested_format: str,
+    requested_style: str,
+    plan: AnswerPlan,
+    semantic_state: dict[str, Any],
+    context: dict[str, Any],
+    resolution: dict[str, Any] | None = None,
+    resolved_query: str | None = None,
+    unsupported_reason: str | None = None,
+) -> dict[str, Any]:
+    route.update(
+        {
+            "intent": intent,
+            "requested_format": requested_format,
+            "requested_style": requested_style,
+            "semantic_parse": semantic_state,
+            "answer_plan": plan.to_dict(),
+            "parser": plan.parser,
+            "context_reference": context.get("context_reference"),
+            "context_used": bool(context.get("context_used")),
+        }
+    )
+    if resolved_query:
+        route["resolved_query"] = resolved_query
+    reason = unsupported_reason or plan.unsupported_reason
+    if reason:
+        route["unsupported_reason"] = reason
+    if resolution:
+        route["entities"] = entities_from_resolution(resolution)
+        route["answer_plan"]["entities"] = entities_from_resolution(resolution)
+    return route
+
+
+def resolve_conversation_context(query: str, state: ConversationState | None) -> dict[str, Any]:
+    if state is None:
+        return {}
+    active = state.active_entity or {}
+    active_name = clean_text(str(active.get("name") or ""))
+    normalized = normalize_alias(query)
+    if not active_name:
+        if any(term in normalized for term in EVIDENCE_STYLE_TERMS) and state.last_sources:
+            return {
+                "route": "source_reader",
+                "requested_style": "evidence",
+                "context_reference": "last_answer",
+                "context_used": True,
+            }
+        return {}
+    if any(term in normalized for term in EVIDENCE_STYLE_TERMS):
+        return {
+            "route": "source_reader",
+            "resolved_query": f"{active_name} 근거",
+            "requested_style": "evidence",
+            "context_reference": "last_answer",
+            "context_used": True,
+        }
+    if looks_like_story_summary(query) and active_name not in query:
+        return {
+            "route": "summary",
+            "resolved_query": f"{active_name} 스토리 요약",
+            "requested_style": "default",
+            "context_reference": "last_entity",
+            "context_used": True,
+        }
+    if looks_like_detail_followup(query):
+        return {
+            "route": "basic_lookup",
+            "resolved_query": f"{active_name} {query}",
+            "requested_style": "detail",
+            "context_reference": "last_entity",
+            "context_used": True,
+        }
+    return {}
+
+
+def requested_style_for_query(query: str) -> str:
+    normalized = normalize_alias(query)
+    if any(term in normalized for term in RAW_STYLE_TERMS):
+        return "raw"
+    if any(term in normalized for term in EVIDENCE_STYLE_TERMS):
+        return "evidence"
+    if any(term in normalized for term in DETAIL_STYLE_TERMS):
+        return "detail"
+    if any(term in normalized for term in BRIEF_STYLE_TERMS) and not looks_like_story_summary(query):
+        return "brief"
+    return "default"
+
+
+def detail_level_for_style(style: str) -> str:
+    if style in {"detail", "raw", "research"}:
+        return "high"
+    if style == "brief":
+        return "low"
+    return "medium"
+
+
+def looks_like_story_summary(query: str) -> bool:
+    normalized = normalize_alias(query)
+    has_story_scope = any(term in normalized for term in STORY_SUMMARY_TERMS)
+    has_summary = any(term in normalized for term in BRIEF_STYLE_TERMS) or "알려줘" in normalized
+    return has_story_scope and has_summary
+
+
+def looks_like_detail_followup(query: str) -> bool:
+    normalized = normalize_alias(query)
+    return any(term in normalized for term in DETAIL_STYLE_TERMS)
+
+
+def summary_intent_for_query(query: str, resolution: dict[str, Any] | None) -> str:
+    if resolution and resolution.get("content_type") == "avatar":
+        return "character_story_summary"
+    if "마신임무" in normalize_alias(query) or "퀘스트" in normalize_alias(query) or "임무" in normalize_alias(query):
+        return "quest_summary"
+    return "summary"
+
+
+def entities_from_resolution(resolution: dict[str, Any] | None) -> list[dict[str, Any]]:
+    if not resolution:
+        return []
+    return [
+        {
+            "surface": resolution.get("title"),
+            "name": resolution.get("title"),
+            "canonical_id": resolution.get("canonical_id"),
+            "content_type": resolution.get("content_type"),
+            "confidence": 1.0,
+        }
+    ]
 
 
 def contains_unsupported_answer_term(query: str) -> bool:
@@ -638,14 +945,19 @@ def format_birthday(value: Any) -> str | None:
     return None
 
 
-def draft_answer_from_facts(facts: dict[str, Any], *, requested_format: str = "paragraph") -> str:
+def draft_answer_from_facts(
+    facts: dict[str, Any],
+    *,
+    requested_format: str = "paragraph",
+    requested_style: str = "default",
+) -> str:
     intent = facts.get("intent")
     if intent == "reliquary_effect_lookup":
         return draft_reliquary_answer(facts, requested_format=requested_format)
     if intent == "weapon_basic_info":
-        return draft_weapon_answer(facts, requested_format=requested_format)
+        return draft_weapon_answer(facts, requested_format=requested_format, requested_style=requested_style)
     if intent == "character_basic_info":
-        return draft_character_answer(facts, requested_format=requested_format)
+        return draft_character_answer(facts, requested_format=requested_format, requested_style=requested_style)
     if intent == "character_constellation":
         return draft_character_constellation_answer(facts, requested_format=requested_format)
     if intent == "character_talent":
@@ -685,7 +997,8 @@ def draft_reliquary_answer(facts: dict[str, Any], *, requested_format: str) -> s
     return "\n\n".join(paragraphs)
 
 
-def draft_weapon_answer(facts: dict[str, Any], *, requested_format: str) -> str:
+def draft_weapon_answer(facts: dict[str, Any], *, requested_format: str, requested_style: str = "default") -> str:
+    include_all_refinements = requested_style in {"detail", "raw"} or requested_format == "table"
     if requested_format == "table":
         rows = [
             ["항목", "내용"],
@@ -713,8 +1026,11 @@ def draft_weapon_answer(facts: dict[str, Any], *, requested_format: str) -> str:
             refinements = affix.get("refinements") or []
             if refinements:
                 lines.append("- 효과 수치는 제련 단계에 따라 증가합니다.")
-                for refinement in refinements:
+                shown_refinements = refinements if include_all_refinements else refinements[:1]
+                for refinement in shown_refinements:
                     lines.append(f"  - R{refinement['level']}: {refinement['text']}")
+                if not include_all_refinements and len(refinements) > 1:
+                    lines.append("- R2~R5 수치는 제련별 또는 자세히 요청하면 펼쳐볼 수 있습니다.")
             break
         lines.append(source_line(facts))
         return "\n".join(lines)
@@ -729,14 +1045,17 @@ def draft_weapon_answer(facts: dict[str, Any], *, requested_format: str) -> str:
         refinements = affix.get("refinements") or []
         if refinements:
             effect_lines.append("효과 수치는 제련 단계에 따라 증가합니다.")
-            effect_lines.extend(f"R{refinement['level']}: {refinement['text']}" for refinement in refinements)
+            shown_refinements = refinements if include_all_refinements else refinements[:1]
+            effect_lines.extend(f"R{refinement['level']}: {refinement['text']}" for refinement in shown_refinements)
+            if not include_all_refinements and len(refinements) > 1:
+                effect_lines.append("R2~R5 수치는 제련별 또는 자세히 요청하면 펼쳐볼 수 있습니다.")
         paragraphs.append("\n".join(effect_lines))
         break
     paragraphs.append(source_text(facts))
     return "\n\n".join(paragraphs)
 
 
-def draft_character_answer(facts: dict[str, Any], *, requested_format: str) -> str:
+def draft_character_answer(facts: dict[str, Any], *, requested_format: str, requested_style: str = "default") -> str:
     if requested_format == "table":
         rows = [["항목", "내용"], ["이름", facts["name"]], ["등급", f"{facts.get('rank')}성"]]
         for key, label in character_basic_fields():
@@ -777,6 +1096,9 @@ def draft_character_answer(facts: dict[str, Any], *, requested_format: str) -> s
         details.append(f"돌파 보너스는 {facts['special_prop']}입니다")
     if details:
         paragraphs.append(". ".join(details) + ".")
+    if requested_style == "brief":
+        paragraphs.append(source_text(facts))
+        return "\n\n".join(paragraphs)
     if facts.get("title"):
         paragraphs.append(f"칭호는 {facts['title']}입니다.")
     if facts.get("detail"):
@@ -880,7 +1202,13 @@ def with_topic_particle(value: str) -> str:
     return text + "는"
 
 
-def validate_answer(answer: str, facts: dict[str, Any], draft_answer: str) -> dict[str, Any]:
+def validate_answer(
+    answer: str,
+    facts: dict[str, Any],
+    draft_answer: str,
+    *,
+    requested_style: str = "default",
+) -> dict[str, Any]:
     reasons = []
     cleaned = clean_text(answer)
     if not cleaned:
@@ -899,7 +1227,7 @@ def validate_answer(answer: str, facts: dict[str, Any], draft_answer: str) -> di
 
     missing_fragments = [
         fragment
-        for fragment in required_fact_fragments(facts)
+        for fragment in required_fact_fragments(facts, requested_style=requested_style)
         if compact_for_presence(fragment) not in compact_for_presence(cleaned)
     ]
     if missing_fragments:
@@ -931,7 +1259,7 @@ def validate_answer(answer: str, facts: dict[str, Any], draft_answer: str) -> di
     }
 
 
-def required_fact_fragments(facts: dict[str, Any]) -> list[str]:
+def required_fact_fragments(facts: dict[str, Any], *, requested_style: str = "default") -> list[str]:
     fragments = []
     intent = facts.get("intent")
     rank = facts.get("rank")
@@ -951,11 +1279,15 @@ def required_fact_fragments(facts: dict[str, Any]) -> list[str]:
         if affix.get("name"):
             fragments.append(str(affix["name"]))
         refinements = affix.get("refinements") or []
-        for refinement in refinements:
+        required_refinements = refinements if requested_style in {"detail", "raw"} else refinements[:1]
+        for refinement in required_refinements:
             if refinement.get("text"):
                 fragments.append(str(refinement["text"]))
     if intent == "character_basic_info":
+        skipped_brief_fields = {"title", "detail"} if requested_style == "brief" else set()
         for key, _label in character_basic_fields():
+            if key in skipped_brief_fields:
+                continue
             if facts.get(key):
                 fragments.append(str(facts[key]))
     elif intent == "character_constellation":
@@ -1018,6 +1350,58 @@ def small_talk_answer(query: str, db_path: Path, *, route: dict[str, Any]) -> di
         "sources": [{"db_path": str(db_path)}],
         "route": route,
         "requested_format": route.get("requested_format") or "paragraph",
+        "requested_style": route.get("requested_style") or "default",
+        "answer_plan": route.get("answer_plan"),
+        "semantic_parse": route.get("semantic_parse"),
+    }
+
+
+def evidence_answer(
+    query: str,
+    db_path: Path,
+    *,
+    route: dict[str, Any],
+    conversation_state: ConversationState | None,
+) -> dict[str, Any]:
+    sources = list(conversation_state.last_sources) if conversation_state and conversation_state.last_sources else []
+    if not sources:
+        sources = [{"db_path": str(db_path)}]
+    lines = ["직전 답변의 근거로 저장된 출처 metadata를 표시합니다."]
+    for index, source in enumerate(sources, start=1):
+        source_name = source.get("source") or "project_amber"
+        language = source.get("language") or "ko"
+        raw_ref = source.get("raw_ref") or source.get("db_path")
+        source_url = source.get("source_url")
+        detail = f"{index}. 출처: {source_name} 공식 데이터 ({language})"
+        if raw_ref:
+            detail += f" / raw_ref: {raw_ref}"
+        if source_url:
+            detail += f" / source_url: {source_url}"
+        lines.append(detail)
+    lines.append("Source Reader 본문 재인용은 아직 Evidence Pack 통합 전 단계입니다.")
+    message = "\n".join(lines)
+    return {
+        "query": query,
+        "canonical_id": None,
+        "content_type": None,
+        "item_id": None,
+        "intent": "show_evidence",
+        "facts": {},
+        "draft_answer": message,
+        "final_answer": message,
+        "llm": {
+            "enabled": False,
+            "used": False,
+            "model": DEFAULT_OLLAMA_MODEL,
+            "ok": False,
+            "error": None,
+        },
+        "validation": {"ok": True, "reasons": []},
+        "sources": sources,
+        "route": route,
+        "requested_format": route.get("requested_format") or requested_format_for_query(query),
+        "requested_style": "evidence",
+        "answer_plan": route.get("answer_plan"),
         "semantic_parse": route.get("semantic_parse"),
     }
 
@@ -1045,5 +1429,7 @@ def unsupported_answer(query: str, db_path: Path, *, route: dict[str, Any] | Non
         "sources": [{"db_path": str(db_path)}],
         "route": route,
         "requested_format": route.get("requested_format") or requested_format_for_query(query),
+        "requested_style": route.get("requested_style") or requested_style_for_query(query),
+        "answer_plan": route.get("answer_plan"),
         "semantic_parse": route.get("semantic_parse"),
     }

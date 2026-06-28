@@ -1,0 +1,114 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e5]:
+      - img [ref=e6]
+      - generic [ref=e7]: Aurora
+      - generic [ref=e8]: 원신 스토리 추적 및 혼원 연구 시스템
+    - button "새 연구 시작" [active] [ref=e9] [cursor=pointer]:
+      - img [ref=e10]
+      - generic [ref=e12]: 새 연구 시작
+    - generic [ref=e250]:
+      - generic [ref=e251]:
+        - generic [ref=e252]: 최근 연구
+        - img [ref=e253]
+      - generic [ref=e255]:
+        - button "Celestia의 진짜 목적은? 오전 11:32" [ref=e256] [cursor=pointer]:
+          - img [ref=e257]
+          - generic [ref=e259]:
+            - strong [ref=e260]: Celestia의 진짜 목적은?
+            - emphasis [ref=e261]: 오전 11:32
+          - img [ref=e262]
+        - button "Teyvat 대륙의 기원과 역사 어제" [ref=e266] [cursor=pointer]:
+          - img [ref=e267]
+          - generic [ref=e269]:
+            - strong [ref=e270]: Teyvat 대륙의 기원과 역사
+            - emphasis [ref=e271]: 어제
+          - img [ref=e272]
+        - button "Focalors의 몰락 심마리 2일 전" [ref=e276] [cursor=pointer]:
+          - img [ref=e277]
+          - generic [ref=e279]:
+            - strong [ref=e280]: Focalors의 몰락 심마리
+            - emphasis [ref=e281]: 2일 전
+          - img [ref=e282]
+        - button "카엔리아 멸망의 진실 3일 전" [ref=e286] [cursor=pointer]:
+          - img [ref=e287]
+          - generic [ref=e289]:
+            - strong [ref=e290]: 카엔리아 멸망의 진실
+            - emphasis [ref=e291]: 3일 전
+          - img [ref=e292]
+        - button "여행자의 정체와 운명 3일 전" [ref=e296] [cursor=pointer]:
+          - img [ref=e297]
+          - generic [ref=e299]:
+            - strong [ref=e300]: 여행자의 정체와 운명
+            - emphasis [ref=e301]: 3일 전
+          - img [ref=e302]
+        - button "Primordial One의 정체 5일 전" [ref=e306] [cursor=pointer]:
+          - img [ref=e307]
+          - generic [ref=e309]:
+            - strong [ref=e310]: Primordial One의 정체
+            - emphasis [ref=e311]: 5일 전
+          - img [ref=e312]
+        - button "하늘의 못과 티바트의 인간 6일 전" [ref=e316] [cursor=pointer]:
+          - img [ref=e317]
+          - generic [ref=e319]:
+            - strong [ref=e320]: 하늘의 못과 티바트의 인간
+            - emphasis [ref=e321]: 6일 전
+          - img [ref=e322]
+        - button "폰타인 재판의 진짜 목적 7일 전" [ref=e326] [cursor=pointer]:
+          - img [ref=e327]
+          - generic [ref=e329]:
+            - strong [ref=e330]: 폰타인 재판의 진짜 목적
+            - emphasis [ref=e331]: 7일 전
+          - img [ref=e332]
+    - generic [ref=e70]:
+      - generic [ref=e71]:
+        - img [ref=e73]
+        - generic [ref=e74]:
+          - generic [ref=e75]: 연구자
+          - button "연구자 모드" [ref=e76] [cursor=pointer]:
+            - text: 연구자 모드
+            - img [ref=e77]
+      - button "설정" [ref=e79] [cursor=pointer]:
+        - img [ref=e80]
+  - main [ref=e83]:
+    - generic [ref=e336]:
+      - img [ref=e338]
+      - heading "✦ 무엇을 연구할까요? ✦" [level=1] [ref=e339]
+      - paragraph [ref=e340]:
+        - text: 원신 세계관의 진실을 함께 추적합니다.
+        - text: 전승, 퀘스트, 캐릭터, 모순까지 - 모든 단서를 연결해 드릴게요.
+      - generic [ref=e341]:
+        - button "Celestia의 목적 분석 Celestia의 진짜 목적과 하늘의 뜻을 추적해 보세요." [ref=e342] [cursor=pointer]:
+          - generic [ref=e343]:
+            - img [ref=e344]
+            - strong [ref=e346]: Celestia의 목적 분석
+          - paragraph [ref=e347]: Celestia의 진짜 목적과 하늘의 뜻을 추적해 보세요.
+          - img [ref=e348]
+        - button "카엔리아 멸망 원인 금지된 지식과 심연의 충돌, 그 진실을 파헤쳐 보세요." [ref=e350] [cursor=pointer]:
+          - generic [ref=e351]:
+            - img [ref=e352]
+            - strong [ref=e355]: 카엔리아 멸망 원인
+          - paragraph [ref=e356]: 금지된 지식과 심연의 충돌, 그 진실을 파헤쳐 보세요.
+          - img [ref=e357]
+        - button "여행자와 Descender 관계 여행자의 기원과 Descender로서의 의미를 분석해 보세요." [ref=e359] [cursor=pointer]:
+          - generic [ref=e360]:
+            - img [ref=e361]
+            - strong [ref=e364]: 여행자와 Descender 관계
+          - paragraph [ref=e365]: 여행자의 기원과 Descender로서의 의미를 분석해 보세요.
+          - img [ref=e366]
+        - button "폰타인 재판 기록 정리 폰타인 재판의 전망과 숨겨진 의도를 정리해 보세요." [ref=e368] [cursor=pointer]:
+          - generic [ref=e369]:
+            - img [ref=e370]
+            - strong [ref=e372]: 폰타인 재판 기록 정리
+          - paragraph [ref=e373]: 폰타인 재판의 전망과 숨겨진 의도를 정리해 보세요.
+          - img [ref=e374]
+      - generic [ref=e376]:
+        - generic [ref=e377]: 메시지를 입력하세요... (Enter로 전송)
+        - generic [ref=e378]:
+          - button "첨부" [ref=e379] [cursor=pointer]:
+            - img [ref=e380]
+          - generic [ref=e382]:
+            - button "옵션" [ref=e383] [cursor=pointer]:
+              - img [ref=e384]
+            - button "전송" [ref=e386] [cursor=pointer]:
+              - img [ref=e387]

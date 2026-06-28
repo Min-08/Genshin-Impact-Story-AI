@@ -1,0 +1,149 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e5]:
+      - img [ref=e6]
+      - generic [ref=e7]: Aurora
+      - generic [ref=e8]: 원신 스토리 추적 및 혼원 연구 시스템
+    - button "새 연구 시작" [ref=e9] [cursor=pointer]:
+      - img [ref=e10]
+      - generic [ref=e12]: 새 연구 시작
+    - generic [ref=e13]:
+      - generic [ref=e14]:
+        - generic [ref=e15]: 연구 기록
+        - img [ref=e16]
+      - generic [ref=e18]:
+        - generic [ref=e19]: 오늘
+        - button "Celestia의 진짜 목적은?" [ref=e20] [cursor=pointer]:
+          - img [ref=e21]
+          - generic [ref=e23]: Celestia의 진짜 목적은?
+          - img [ref=e24]
+        - button "Teyvat 대륙의 잃어버린 역사" [ref=e28] [cursor=pointer]:
+          - img [ref=e29]
+          - generic [ref=e31]: Teyvat 대륙의 잃어버린 역사
+        - button "Focalors와 물의 심판 추구성" [ref=e32] [cursor=pointer]:
+          - img [ref=e33]
+          - generic [ref=e35]: Focalors와 물의 심판 추구성
+      - generic [ref=e36]:
+        - generic [ref=e37]: 어제
+        - button "카엔리아 왕국의 멸망 원인" [ref=e38] [cursor=pointer]:
+          - img [ref=e39]
+          - generic [ref=e41]: 카엔리아 왕국의 멸망 원인
+        - button "여행자의 정체(사진) 정체 추측" [ref=e42] [cursor=pointer]:
+          - img [ref=e43]
+          - generic [ref=e45]: 여행자의 정체(사진) 정체 추측
+      - generic [ref=e46]:
+        - generic [ref=e47]: 지난 7일
+        - button "Primordial One의 정체" [ref=e48] [cursor=pointer]:
+          - img [ref=e49]
+          - generic [ref=e51]: Primordial One의 정체
+        - button "하늘의 못과 티바트의 인간 고리" [ref=e52] [cursor=pointer]:
+          - img [ref=e53]
+          - generic [ref=e55]: 하늘의 못과 티바트의 인간 고리
+        - button "마안별 헤이모리 숨겨진 목적" [ref=e56] [cursor=pointer]:
+          - img [ref=e57]
+          - generic [ref=e59]: 마안별 헤이모리 숨겨진 목적
+      - generic [ref=e60]:
+        - generic [ref=e61]: 지난 30일
+        - button "Celestia의 별 바다와 관계" [ref=e62] [cursor=pointer]:
+          - img [ref=e63]
+          - generic [ref=e65]: Celestia의 별 바다와 관계
+        - button "7신의 권능 융합 연구" [ref=e66] [cursor=pointer]:
+          - img [ref=e67]
+          - generic [ref=e69]: 7신의 권능 융합 연구
+    - generic [ref=e70]:
+      - generic [ref=e71]:
+        - img [ref=e73]
+        - generic [ref=e74]:
+          - generic [ref=e75]: 연구자
+          - button "연구자 모드" [ref=e76] [cursor=pointer]:
+            - text: 연구자 모드
+            - img [ref=e77]
+      - button "설정" [ref=e79] [cursor=pointer]:
+        - img [ref=e80]
+  - main [ref=e83]:
+    - generic [ref=e84]:
+      - generic [ref=e85]:
+        - generic [ref=e86]:
+          - strong [ref=e87]: You
+          - generic [ref=e88]: 오전 11:32
+        - paragraph [ref=e89]: Celestia의 진짜 목적은 무엇일까? 티바트의 권능과 연결지어 설명해줘.
+      - generic [ref=e90]:
+        - generic [ref=e91]:
+          - img [ref=e93]
+          - strong [ref=e94]: Aurora AI
+          - generic [ref=e95]: 오전 11:32
+        - generic [ref=e96]:
+          - generic [ref=e97]:
+            - img [ref=e98]
+            - text: DB
+          - generic [ref=e100]:
+            - img [ref=e101]
+            - text: 검색
+          - generic [ref=e103]:
+            - img [ref=e104]
+            - text: 연구 모드
+      - paragraph [ref=e106]: Celestia는 질서 유지를 명분으로 티바트의 권능(원소의 힘)을 통제하고 조정하는 기구로 보입니다. 단순한 수호자가 아니라, 원초 질서의 균규성 - '이세계'와 '원리로부터 티바트를 격리' - 라는 더 근본적인 목표를 추구하는 가능성이 큽니다.
+      - generic [ref=e108]:
+        - generic [ref=e109]:
+          - heading "출처 (4)" [level=2] [ref=e110]
+          - img [ref=e111]
+        - article [ref=e114]:
+          - generic [ref=e115]:
+            - generic [ref=e116]:
+              - img [ref=e117]
+              - strong [ref=e119]: Evidence 01
+              - generic [ref=e120]: 선죄와 하늘 기록 문헌 구조
+            - img [ref=e121]
+        - article [ref=e123]:
+          - generic [ref=e124]:
+            - generic [ref=e125]:
+              - img [ref=e126]
+              - strong [ref=e128]: Evidence 02
+              - generic [ref=e129]: 티바트 원소 흐름과의 연대 기록
+            - img [ref=e130]
+        - article [ref=e132]:
+          - generic [ref=e133]:
+            - generic [ref=e134]:
+              - img [ref=e135]
+              - strong [ref=e137]: Evidence 03
+              - generic [ref=e138]: 기이함 주기는 존재 권리 정황
+            - img [ref=e139]
+          - generic [ref=e141]:
+            - generic [ref=e142]:
+              - generic [ref=e143]:
+                - strong [ref=e144]: 기이함 주기는 존재 권리 정황
+                - generic [ref=e145]: 게임 내 문헌
+                - emphasis [ref=e146]: "획득: 자유의 심장 임무 중"
+                - generic [ref=e147]: "원문 언어: 티바트 고대어"
+                - generic [ref=e148]: "기록 일자: 불명"
+              - blockquote [ref=e149]:
+                - text: "\"... 만물은 주기의 흐름 속에서 태어나고, 기이함은 그 주기를 벗어난다."
+                - text: 기이함이 누적되면, 세계는 불안정해지고 질서는 무너진다.
+                - mark [ref=e150]: 이에 하늘은 내려와, 그 흐름을 바로잡고, 존재의 권리를 다시 수여한다.'
+                - mark [ref=e151]: 그렇게 하여, 세계는 다시 균형을 찾고, 새로운 순환이 시작된다.'
+                - text: ..."
+            - complementary [ref=e152]:
+              - generic [ref=e153]:
+                - strong [ref=e154]: 연구 노트
+                - img [ref=e155]
+              - paragraph [ref=e157]: 기이함 = 원소의 과잉, 혹은 금지된 지식의 축적을 의미할 가능성이 높음. Celestia는 이를 제거하거나 초기화하여 티바트의 질서를 재설정하는 역할 수행.
+              - generic [ref=e158]:
+                - generic [ref=e159]: "메모 작성자: 연구자"
+                - generic [ref=e160]: 오늘 오전 11:35
+        - article [ref=e161]:
+          - generic [ref=e162]:
+            - generic [ref=e163]:
+              - img [ref=e164]
+              - strong [ref=e166]: Evidence 04
+              - generic [ref=e167]: Focalors 자료 기록
+            - img [ref=e168]
+      - generic [ref=e170]:
+        - generic [ref=e171]: 메시지를 입력하세요... (Enter로 전송)
+        - generic [ref=e172]:
+          - button "첨부" [ref=e173] [cursor=pointer]:
+            - img [ref=e174]
+          - generic [ref=e176]:
+            - button "옵션" [ref=e177] [cursor=pointer]:
+              - img [ref=e178]
+            - button "전송" [ref=e180] [cursor=pointer]:
+              - img [ref=e181]

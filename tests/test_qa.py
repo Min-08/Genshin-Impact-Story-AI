@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from genshin_lore_db.search_engine.conversation import ConversationState
 from genshin_lore_db.search_engine.qa import (
     answer_question,
     build_character_facts,
@@ -60,7 +61,7 @@ def test_weapon_facts_extract_refinement_effect() -> None:
     assert facts["affixes"][0]["refinements"][0]["text"] == "모든 원소 피해 보너스 12%"
 
 
-def test_weapon_answer_includes_all_refinements() -> None:
+def test_weapon_answer_default_uses_r1_only_and_detail_includes_all_refinements() -> None:
     facts = build_weapon_facts(
         {
             "id": 11509,
@@ -84,9 +85,12 @@ def test_weapon_answer_includes_all_refinements() -> None:
         source=SOURCE,
     )
     draft = draft_answer_from_facts(facts)
+    detail = draft_answer_from_facts(facts, requested_style="detail")
 
     assert "R1: 피해 보너스 12%" in draft
-    assert "R5: 피해 보너스 24%" in draft
+    assert "R5: 피해 보너스 24%" not in draft
+    assert "R1: 피해 보너스 12%" in detail
+    assert "R5: 피해 보너스 24%" in detail
 
 
 def test_character_facts_extract_basic_profile() -> None:
@@ -252,11 +256,77 @@ def test_route_answer_query_guards_greeting() -> None:
     assert "guard:greeting" in route["signals"]
 
 
+def test_route_answer_query_hard_guard_blocks_llm_basic_lookup(monkeypatch) -> None:
+    def fake_semantic_parse(*_args, **_kwargs):
+        return {
+            "ok": True,
+            "parse": {
+                "route": "basic_lookup",
+                "intent": "character_basic_info",
+                "entities": [{"surface": "나선비경", "content_type_hint": "avatar", "confidence": 0.9}],
+                "requested_style": "default",
+                "confidence": 0.9,
+            },
+        }
+
+    monkeypatch.setattr(
+        "genshin_lore_db.search_engine.qa.parse_query_semantics_with_ollama",
+        fake_semantic_parse,
+    )
+
+    route = route_answer_query(".", "나선비경 티어 알려줘", use_llm=True)
+
+    assert route["mode"] == "unsupported"
+    assert route["intent"] == "guide_or_meta_request"
+    assert route["unsupported_reason"] == "unofficial_strategy_request"
+
+
+def test_route_answer_query_blocks_artifact_recommendation_lookup() -> None:
+    route = route_answer_query(".", "피슬 성유물 추천해줘", use_llm=False)
+
+    assert route["mode"] == "unsupported"
+    assert route["intent"] == "guide_or_meta_request"
+    assert route["unsupported_reason"] == "unofficial_strategy_request"
+
+
+def test_route_answer_query_basic_summary_phrase_is_brief_lookup() -> None:
+    route = route_answer_query(".", "푸리나에 대해서 요약해줘", use_llm=False)
+
+    assert route["mode"] == "basic_lookup"
+    assert route["intent"] == "character_basic_info"
+    assert route["requested_style"] == "brief"
+
+
 def test_route_answer_query_exact_character_defaults_to_basic_lookup() -> None:
     route = route_answer_query(".", "아야카에 대해서 알려줘", use_llm=False)
 
     assert route["mode"] == "basic_lookup"
     assert route["intent"] == "character_basic_info"
+
+
+def test_conversation_state_resolves_story_detail_and_evidence_followups() -> None:
+    state = ConversationState()
+    first = answer_question(".", "푸리나 알려줘", use_llm=False, conversation_state=state)
+    state.update_from_result(first)
+
+    story = answer_question(".", "스토리도 알려줘", use_llm=False, conversation_state=state)
+    assert story["route"]["mode"] == "summary"
+    assert story["route"]["context_used"] is True
+    assert story["route"]["answer_plan"]["intent"] == "character_story_summary"
+    assert story["route"]["unsupported_reason"] == "route_not_implemented"
+    state.update_from_result(story)
+
+    detail = answer_question(".", "더 자세히", use_llm=False, conversation_state=state)
+    assert detail["route"]["mode"] == "basic_lookup"
+    assert detail["route"]["context_used"] is True
+    assert detail["requested_style"] == "detail"
+    state.update_from_result(detail)
+
+    evidence = answer_question(".", "근거는?", use_llm=False, conversation_state=state)
+    assert evidence["route"]["mode"] == "source_reader"
+    assert evidence["route"]["context_used"] is True
+    assert evidence["intent"] == "show_evidence"
+    assert "project_amber" in evidence["final_answer"]
 
 
 def test_answer_question_handles_greeting_without_lookup() -> None:

@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from genshin_lore_db.search_engine.conversation import ConversationState
 from genshin_lore_db.search_engine.local_llm import DEFAULT_OLLAMA_MODEL
 from genshin_lore_db.search_engine.qa import answer_question
 
@@ -24,6 +25,7 @@ def run_terminal_qa(
 ) -> int:
     root_path = Path(root).resolve()
     configure_utf8_stdio()
+    conversation_state = ConversationState()
 
     if once:
         result = answer_terminal_query(
@@ -32,8 +34,10 @@ def run_terminal_qa(
             use_llm=use_llm,
             use_routing=use_routing,
             model=model,
+            conversation_state=conversation_state,
         )
         emit_result(result, json_output=json_output)
+        conversation_state.update_from_result(result)
         return 0
 
     print("Genshin Lore QA terminal")
@@ -63,12 +67,14 @@ def run_terminal_qa(
                 use_llm=use_llm,
                 use_routing=use_routing,
                 model=model,
+                conversation_state=conversation_state,
             )
         except Exception as exc:  # noqa: BLE001 - terminal loop should keep running.
             print(f"[error] {type(exc).__name__}: {exc}", file=sys.stderr)
             continue
 
         emit_result(result, json_output=json_output)
+        conversation_state.update_from_result(result)
 
 
 def answer_terminal_query(
@@ -78,8 +84,9 @@ def answer_terminal_query(
     use_llm: bool,
     use_routing: bool,
     model: str,
+    conversation_state: ConversationState | None = None,
 ) -> dict[str, Any]:
-    result = answer_question(root, query, use_llm=use_llm, model=model)
+    result = answer_question(root, query, use_llm=use_llm, model=model, conversation_state=conversation_state)
     if not use_routing:
         result.pop("route", None)
     return result
@@ -104,6 +111,10 @@ def status_line(result: dict[str, Any]) -> str:
             parts.append(f"route={route.get('mode', 'unknown')}:{confidence:.2f}")
         else:
             parts.append(f"route={route.get('mode', 'unknown')}")
+        if route.get("requested_style"):
+            parts.append(f"style={route.get('requested_style')}")
+        if route.get("context_used"):
+            parts.append(f"context={route.get('context_reference') or 'used'}")
     parts.append(f"intent={result.get('intent', 'unknown')}")
     parts.append(f"llm={llm_status(result.get('llm'))}")
     return "[" + " | ".join(parts) + "]"

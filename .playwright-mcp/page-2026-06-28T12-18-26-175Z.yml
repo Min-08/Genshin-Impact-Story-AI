@@ -1,0 +1,211 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e5]:
+      - img [ref=e6]
+      - generic [ref=e7]: Aurora
+      - generic [ref=e8]: 원신 스토리 추적 및 혼원 연구 시스템
+    - button "새 연구 시작" [ref=e9] [cursor=pointer]:
+      - img [ref=e10]
+      - generic [ref=e12]: 새 연구 시작
+    - generic [ref=e13]:
+      - generic [ref=e14]:
+        - generic [ref=e15]: 연구 기록
+        - img [ref=e16]
+      - generic [ref=e18]:
+        - generic [ref=e19]: 오늘
+        - button "Celestia의 진짜 목적은?" [ref=e20] [cursor=pointer]:
+          - img [ref=e21]
+          - generic [ref=e23]: Celestia의 진짜 목적은?
+          - img [ref=e24]
+        - button "Teyvat 대륙의 잃어버린 역사" [ref=e28] [cursor=pointer]:
+          - img [ref=e29]
+          - generic [ref=e31]: Teyvat 대륙의 잃어버린 역사
+        - button "Focalors와 물의 심판 추구성" [ref=e32] [cursor=pointer]:
+          - img [ref=e33]
+          - generic [ref=e35]: Focalors와 물의 심판 추구성
+      - generic [ref=e36]:
+        - generic [ref=e37]: 어제
+        - button "카엔리아 왕국의 멸망 원인" [ref=e38] [cursor=pointer]:
+          - img [ref=e39]
+          - generic [ref=e41]: 카엔리아 왕국의 멸망 원인
+        - button "여행자의 정체(사진) 정체 추측" [ref=e42] [cursor=pointer]:
+          - img [ref=e43]
+          - generic [ref=e45]: 여행자의 정체(사진) 정체 추측
+      - generic [ref=e46]:
+        - generic [ref=e47]: 지난 7일
+        - button "Primordial One의 정체" [ref=e48] [cursor=pointer]:
+          - img [ref=e49]
+          - generic [ref=e51]: Primordial One의 정체
+        - button "하늘의 못과 티바트의 인간 고리" [ref=e52] [cursor=pointer]:
+          - img [ref=e53]
+          - generic [ref=e55]: 하늘의 못과 티바트의 인간 고리
+        - button "마안별 헤이모리 숨겨진 목적" [ref=e56] [cursor=pointer]:
+          - img [ref=e57]
+          - generic [ref=e59]: 마안별 헤이모리 숨겨진 목적
+      - generic [ref=e60]:
+        - generic [ref=e61]: 지난 30일
+        - button "Celestia의 별 바다와 관계" [ref=e62] [cursor=pointer]:
+          - img [ref=e63]
+          - generic [ref=e65]: Celestia의 별 바다와 관계
+        - button "7신의 권능 융합 연구" [ref=e66] [cursor=pointer]:
+          - img [ref=e67]
+          - generic [ref=e69]: 7신의 권능 융합 연구
+    - generic [ref=e70]:
+      - generic [ref=e71]:
+        - img [ref=e73]
+        - generic [ref=e74]:
+          - generic [ref=e75]: 연구자
+          - button "연구자 모드" [ref=e76] [cursor=pointer]:
+            - text: 연구자 모드
+            - img [ref=e77]
+      - button "설정" [ref=e79] [cursor=pointer]:
+        - img [ref=e80]
+  - main [ref=e83]:
+    - generic [ref=e84]:
+      - generic [ref=e85]:
+        - generic [ref=e86]:
+          - strong [ref=e87]: You
+          - generic [ref=e88]: 오전 11:32
+        - paragraph [ref=e89]: Celestia의 진짜 목적은 무엇일까? 티바트의 권능과 연결지어 설명해줘.
+      - generic [ref=e90]:
+        - generic [ref=e91]:
+          - img [ref=e93]
+          - strong [ref=e94]: Aurora AI
+          - generic [ref=e95]: 오전 11:32
+        - generic [ref=e96]:
+          - generic [ref=e97]:
+            - img [ref=e98]
+            - text: DB
+          - generic [ref=e100]:
+            - img [ref=e101]
+            - text: 검색
+          - generic [ref=e103]:
+            - img [ref=e104]
+            - text: 연구 모드
+      - generic [ref=e106]:
+        - generic [ref=e107]:
+          - img [ref=e108]
+          - generic [ref=e110]: Celestia 목적 권능 연결
+          - img [ref=e111]
+        - generic [ref=e113]:
+          - button "모든 유형" [ref=e114] [cursor=pointer]:
+            - generic [ref=e115]: 모든 유형
+            - img [ref=e116]
+          - button "모든 출처" [ref=e118] [cursor=pointer]:
+            - generic [ref=e119]: 모든 출처
+            - img [ref=e120]
+          - button "모든 시대" [ref=e122] [cursor=pointer]:
+            - generic [ref=e123]: 모든 시대
+            - img [ref=e124]
+          - button "관련도 순" [ref=e126] [cursor=pointer]:
+            - img [ref=e127]
+            - generic [ref=e129]: 관련도 순
+            - img [ref=e130]
+          - button "필터" [ref=e132] [cursor=pointer]:
+            - img [ref=e133]
+        - generic [ref=e135]:
+          - button "Dialogue DB" [ref=e136] [cursor=pointer]:
+            - img [ref=e137]
+            - text: Dialogue DB
+          - button "Quest Logs" [ref=e139] [cursor=pointer]:
+            - img [ref=e140]
+            - text: Quest Logs
+          - button "Artifact Texts" [ref=e142] [cursor=pointer]:
+            - img [ref=e143]
+            - text: Artifact Texts
+          - button "Amber Archive" [ref=e145] [cursor=pointer]:
+            - img [ref=e146]
+            - text: Amber Archive
+          - button "Character Notes" [ref=e148] [cursor=pointer]:
+            - img [ref=e149]
+            - text: Character Notes
+          - button "더보기 +" [ref=e151] [cursor=pointer]
+      - generic [ref=e152]:
+        - generic [ref=e153]: 검색 결과 24개
+        - generic [ref=e154]:
+          - button "카드 보기" [ref=e155] [cursor=pointer]:
+            - img [ref=e156]
+            - text: 카드 보기
+          - button "목록 보기" [ref=e158] [cursor=pointer]:
+            - img [ref=e159]
+            - text: 목록 보기
+      - generic [ref=e161]:
+        - article [ref=e162]:
+          - generic [ref=e163]:
+            - generic [ref=e164]:
+              - img [ref=e165]
+              - text: Dialogue DB
+            - img [ref=e167]
+          - strong [ref=e169]: 천리의 대화 · 제4막
+          - paragraph [ref=e170]: “... 천리는 말하길, 하늘은 모든 것을 지켜보고 기록하며, 그 기록은 돌아갈 곳을 알고 있다...”
+          - generic [ref=e171]:
+            - generic [ref=e172]: "출처: 리월 · 천리"
+            - generic [ref=e173]: 3.2 버전
+        - article [ref=e174]:
+          - generic [ref=e175]:
+            - generic [ref=e176]:
+              - img [ref=e177]
+              - text: Quest Logs
+            - img [ref=e179]
+          - strong [ref=e181]: 「하늘의 못」 관련 기록
+          - paragraph [ref=e182]: 하늘에서 떨어진 못은 하늘의 질서를 거스른 증거. 그 안에는 세계를 조정하는 힘이 봉인되어 있다.
+          - generic [ref=e183]:
+            - generic [ref=e184]: "출처: 월드 임무 · 하늘의 못"
+            - generic [ref=e185]: 1.1 버전
+        - article [ref=e186]:
+          - generic [ref=e187]:
+            - generic [ref=e188]:
+              - img [ref=e189]
+              - text: Artifact Texts
+            - img [ref=e191]
+          - strong [ref=e193]: 시간의 모래 · 기록 III
+          - paragraph [ref=e194]: “... 별과 별을 잇는 자들이 있었다. 그들은 기록하고, 지우고, 다시 쓰기를 반복했다.”
+          - generic [ref=e195]:
+            - generic [ref=e196]: "출처: 성유물 · 시간의 모래"
+            - generic [ref=e197]: 2.6 버전
+        - article [ref=e198]:
+          - generic [ref=e199]:
+            - generic [ref=e200]:
+              - img [ref=e201]
+              - text: Amber Archive
+            - img [ref=e203]
+          - strong [ref=e205]: 금서 「빛의 심판」 중권
+          - paragraph [ref=e206]: 빛은 질서를 낳고, 질서는 권능을 낳는다. 권능은 결국, 하늘의 뜻으로 귀결된다.
+          - generic [ref=e207]:
+            - generic [ref=e208]: "출처: 앰버 아카이브 · 금서"
+            - generic [ref=e209]: 연대 미상
+        - article [ref=e210]:
+          - generic [ref=e211]:
+            - generic [ref=e212]:
+              - img [ref=e213]
+              - text: Dialogue DB
+            - img [ref=e215]
+          - strong [ref=e217]: 방랑자와 페이몬의 대화
+          - paragraph [ref=e218]: "페이몬: “하늘이 우리를 보고 있는 걸까?” 방랑자: “그보다, 우리는 무엇을 위해 존재하지?”"
+          - generic [ref=e219]:
+            - generic [ref=e220]: "출처: 메인 스토리 · 방랑자"
+            - generic [ref=e221]: 3.3 버전
+        - article [ref=e222]:
+          - generic [ref=e223]:
+            - generic [ref=e224]:
+              - img [ref=e225]
+              - text: Artifact Texts
+            - img [ref=e227]
+          - strong [ref=e229]: 이상한 깃털 · 해설
+          - paragraph [ref=e230]: 깃털은 하늘의 사자를 의미하며, 그들이 남긴 것은 메시지이자 경고였다.
+          - generic [ref=e231]:
+            - generic [ref=e232]: "출처: 성유물 · 이상한 깃털"
+            - generic [ref=e233]: 1.3 버전
+      - generic [ref=e234]:
+        - text: 더 많은 결과가 있습니다. 스크롤하거나 필터를 좁혀보세요.
+        - img [ref=e235]
+      - generic [ref=e237]:
+        - generic [ref=e238]: 메시지를 입력하세요... (Enter로 전송)
+        - generic [ref=e239]:
+          - button "첨부" [ref=e240] [cursor=pointer]:
+            - img [ref=e241]
+          - generic [ref=e243]:
+            - button "옵션" [ref=e244] [cursor=pointer]:
+              - img [ref=e245]
+            - button "전송" [ref=e247] [cursor=pointer]:
+              - img [ref=e248]

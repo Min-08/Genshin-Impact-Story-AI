@@ -1,6 +1,6 @@
 {
-  "version": "0.6.0",
-  "description": "Regression set for basic_lookup stabilization, paragraph writers, greeting guard, semantic routing fallback, and no-LLM deterministic QA.",
+  "version": "0.6.2",
+  "description": "Regression set for AnswerPlan route hardening, requested_style handling, conversation follow-ups, semantic routing fallback, and no-LLM deterministic QA.",
   "cases": [
     {
       "id": "small_talk_greeting",
@@ -87,7 +87,20 @@
       "expected_content_type": "weapon",
       "expected_canonical_id": "project_amber:weapon:11509",
       "expected_item_id": "11509",
-      "required_fragments": ["안개를 가르는 회광", "5성 한손검", "치명타 피해", "무절(霧切) 어검", "R1:", "R5:"],
+      "expected_requested_style": "default",
+      "required_fragments": ["안개를 가르는 회광", "5성 한손검", "치명타 피해", "무절(霧切) 어검", "R1:"],
+      "forbidden_fragments": ["추천", "티어", "추측", "R5:"]
+    },
+    {
+      "id": "weapon_mistsplitter_detail_refinements",
+      "query": "안개를 가르는 회광 R1부터 R5까지 보여줘",
+      "expected_route": "basic_lookup",
+      "expected_intent": "weapon_basic_info",
+      "expected_content_type": "weapon",
+      "expected_canonical_id": "project_amber:weapon:11509",
+      "expected_item_id": "11509",
+      "expected_requested_style": "detail",
+      "required_fragments": ["안개를 가르는 회광", "무절(霧切) 어검", "R1:", "R5:"],
       "forbidden_fragments": ["추천", "티어", "추측"]
     },
     {
@@ -98,8 +111,9 @@
       "expected_content_type": "weapon",
       "expected_canonical_id": "project_amber:weapon:13501",
       "expected_item_id": "13501",
-      "required_fragments": ["호마의 지팡이", "5성 장병기", "치명타 피해", "자유의 붉은 나비", "R1:", "R5:"],
-      "forbidden_fragments": ["추천", "티어", "추측"]
+      "expected_requested_style": "default",
+      "required_fragments": ["호마의 지팡이", "5성 장병기", "치명타 피해", "자유의 붉은 나비", "R1:"],
+      "forbidden_fragments": ["추천", "티어", "추측", "R5:"]
     },
     {
       "id": "weapon_engulfing_lightning_info",
@@ -109,8 +123,9 @@
       "expected_content_type": "weapon",
       "expected_canonical_id": "project_amber:weapon:13509",
       "expected_item_id": "13509",
-      "required_fragments": ["예초의 번개", "5성 장병기", "원소 충전 효율", "불시의 꿈·영원한 부뚜막", "R1:", "R5:"],
-      "forbidden_fragments": ["추천", "티어", "추측"]
+      "expected_requested_style": "default",
+      "required_fragments": ["예초의 번개", "5성 장병기", "원소 충전 효율", "불시의 꿈·영원한 부뚜막", "R1:"],
+      "forbidden_fragments": ["추천", "티어", "추측", "R5:"]
     },
     {
       "id": "weapon_wolfs_gravestone_info",
@@ -120,8 +135,9 @@
       "expected_content_type": "weapon",
       "expected_canonical_id": "project_amber:weapon:12502",
       "expected_item_id": "12502",
-      "required_fragments": ["늑대의 말로", "5성 양손검", "공격력", "늑대 같은 사냥꾼", "HP가 30% 미만", "R5:"],
-      "forbidden_fragments": ["추천", "티어", "추측"]
+      "expected_requested_style": "default",
+      "required_fragments": ["늑대의 말로", "5성 양손검", "공격력", "늑대 같은 사냥꾼", "HP가 30% 미만"],
+      "forbidden_fragments": ["추천", "티어", "추측", "R5:"]
     },
     {
       "id": "weapon_skyward_blade_info",
@@ -131,8 +147,9 @@
       "expected_content_type": "weapon",
       "expected_canonical_id": "project_amber:weapon:11502",
       "expected_item_id": "11502",
-      "required_fragments": ["천공의 검", "5성 한손검", "원소 충전 효율", "높은 하늘을 뚫는 이빨", "치명타 확률이 4%", "R5:"],
-      "forbidden_fragments": ["추천", "티어", "추측"]
+      "expected_requested_style": "default",
+      "required_fragments": ["천공의 검", "5성 한손검", "원소 충전 효율", "높은 하늘을 뚫는 이빨", "치명타 확률이 4%"],
+      "forbidden_fragments": ["추천", "티어", "추측", "R5:"]
     },
     {
       "id": "weapon_primordial_jade_cutter_info",
@@ -142,8 +159,9 @@
       "expected_content_type": "weapon",
       "expected_canonical_id": "project_amber:weapon:11505",
       "expected_item_id": "11505",
-      "required_fragments": ["반암결록", "5성 한손검", "치명타 확률", "수호자의 무구한 마음", "HP가 20% 증가", "R5:"],
-      "forbidden_fragments": ["추천", "티어", "추측"]
+      "expected_requested_style": "default",
+      "required_fragments": ["반암결록", "5성 한손검", "치명타 확률", "수호자의 무구한 마음", "HP가 20% 증가"],
+      "forbidden_fragments": ["추천", "티어", "추측", "R5:"]
     },
     {
       "id": "character_furina_basic",
@@ -155,6 +173,18 @@
       "expected_item_id": "10000089",
       "required_fragments": ["푸리나는 폰타인 출신의 5성 물 원소 캐릭터입니다.", "한손검", "10월 13일", "코레고스자리"],
       "forbidden_fragments": ["추천", "티어", "추측", "C1"]
+    },
+    {
+      "id": "character_furina_brief_summary_phrase",
+      "query": "푸리나에 대해서 요약해줘",
+      "expected_route": "basic_lookup",
+      "expected_intent": "character_basic_info",
+      "expected_content_type": "avatar",
+      "expected_canonical_id": "project_amber:avatar:10000089",
+      "expected_item_id": "10000089",
+      "expected_requested_style": "brief",
+      "required_fragments": ["푸리나는 폰타인 출신의 5성 물 원소 캐릭터입니다.", "한손검", "코레고스자리"],
+      "forbidden_fragments": ["추천", "티어", "추측", "CV"]
     },
     {
       "id": "character_raiden_basic",
@@ -280,22 +310,26 @@
     {
       "id": "unsupported_artifact_recommendation",
       "query": "피슬 성유물 추천해줘",
-      "expected_route": "basic_lookup",
+      "expected_route": "unsupported",
       "expected_intent": "unsupported",
       "expected_content_type": null,
       "expected_canonical_id": null,
       "expected_item_id": null,
+      "expected_plan_intent": "guide_or_meta_request",
+      "expected_unsupported_reason": "unofficial_strategy_request",
       "required_fragments": ["지원하는 정답형 QA 대상을 찾지 못했습니다"],
       "forbidden_fragments": ["추천 세팅", "티어", "공격력+18%"]
     },
     {
       "id": "unsupported_spiral_tier",
       "query": "나선비경 티어 알려줘",
-      "expected_route": "analysis",
+      "expected_route": "unsupported",
       "expected_intent": "unsupported",
       "expected_content_type": null,
       "expected_canonical_id": null,
       "expected_item_id": null,
+      "expected_plan_intent": "guide_or_meta_request",
+      "expected_unsupported_reason": "unofficial_strategy_request",
       "required_fragments": ["지원하는 정답형 QA 대상을 찾지 못했습니다"],
       "forbidden_fragments": ["추천", "티어표", "5성 캐릭터입니다"]
     },
@@ -320,6 +354,51 @@
       "expected_item_id": null,
       "required_fragments": ["지원하는 정답형 QA 대상을 찾지 못했습니다"],
       "forbidden_fragments": ["성유물 세트입니다", "5성 캐릭터입니다", "5성 한손검입니다"]
+    },
+    {
+      "id": "conversation_furina_story_followup",
+      "history": [{"user": "푸리나 알려줘"}],
+      "query": "스토리도 알려줘",
+      "expected_route": "summary",
+      "expected_intent": "unsupported",
+      "expected_content_type": null,
+      "expected_canonical_id": null,
+      "expected_item_id": null,
+      "expected_plan_intent": "character_story_summary",
+      "expected_requested_style": "default",
+      "expected_unsupported_reason": "route_not_implemented",
+      "expected_context_used": true,
+      "required_fragments": ["지원하는 정답형 QA 대상을 찾지 못했습니다"],
+      "forbidden_fragments": ["추천", "티어", "5성 캐릭터입니다"]
+    },
+    {
+      "id": "conversation_mistsplitter_detail_followup",
+      "history": [{"user": "안개를 가르는 회광 정보"}],
+      "query": "R1부터 R5까지 보여줘",
+      "expected_route": "basic_lookup",
+      "expected_intent": "weapon_basic_info",
+      "expected_content_type": "weapon",
+      "expected_canonical_id": "project_amber:weapon:11509",
+      "expected_item_id": "11509",
+      "expected_requested_style": "detail",
+      "expected_context_used": true,
+      "required_fragments": ["안개를 가르는 회광", "R1:", "R5:"],
+      "forbidden_fragments": ["추천", "티어", "추측"]
+    },
+    {
+      "id": "conversation_furina_evidence_followup",
+      "history": [{"user": "푸리나 알려줘"}],
+      "query": "근거는?",
+      "expected_route": "source_reader",
+      "expected_intent": "show_evidence",
+      "expected_content_type": null,
+      "expected_canonical_id": null,
+      "expected_item_id": null,
+      "expected_plan_intent": "show_evidence",
+      "expected_requested_style": "evidence",
+      "expected_context_used": true,
+      "required_fragments": ["출처", "project_amber", "raw_ref"],
+      "forbidden_fragments": ["지원하는 정답형 QA 대상을 찾지 못했습니다"]
     }
   ],
   "thresholds": {
@@ -330,6 +409,10 @@
     "item_id_match": 1.0,
     "required_fragments_present": 1.0,
     "forbidden_fragments_absent": 1.0,
+    "requested_style_match": 1.0,
+    "unsupported_reason_match": 1.0,
+    "context_used_match": 1.0,
+    "plan_intent_match": 1.0,
     "validation_ok": 1.0,
     "case_passed": 1.0
   }

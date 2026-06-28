@@ -9,8 +9,9 @@ from genshin_lore_db.search_engine.local_llm import DEFAULT_OLLAMA_MODEL, ollama
 
 
 SEMANTIC_SCHEMA_VERSION = "semantic_parse.v0.1"
-SEMANTIC_ROUTES = {"basic_lookup", "summary", "analysis", "research", "chitchat", "unsupported"}
+SEMANTIC_ROUTES = {"basic_lookup", "summary", "analysis", "research", "source_reader", "chitchat", "unsupported"}
 SEMANTIC_FORMATS = {"paragraph", "bullet", "table", "short", "long"}
+SEMANTIC_STYLES = {"brief", "default", "detail", "raw", "evidence", "analysis", "research"}
 
 
 def parse_query_semantics_with_ollama(
@@ -27,8 +28,10 @@ def parse_query_semantics_with_ollama(
                     "You classify a Korean Genshin Impact lore/game-data query.",
                     "Return strict JSON only. Do not write markdown, prose, or reasoning.",
                     "Do not invent entities. Use the user's surface strings only.",
-                    "Allowed route values: basic_lookup, summary, analysis, research, chitchat, unsupported.",
+                    "Allowed route values: basic_lookup, summary, analysis, research, source_reader, chitchat, unsupported.",
                     "Allowed requested_format values: paragraph, bullet, table, short, long.",
+                    "Allowed requested_style values: brief, default, detail, raw, evidence, analysis, research.",
+                    "Guide, tier, team-building, Spiral Abyss meta, and artifact recommendation requests must be unsupported.",
                     "너는 질문 의미를 JSON으로만 분류한다. 답변을 생성하지 않는다.",
                     "엔티티는 사용자가 말한 표면 문자열만 넣고 새 이름을 만들지 않는다.",
                 ]
@@ -40,7 +43,7 @@ def parse_query_semantics_with_ollama(
                 [
                     "/no_think",
                     "다음 JSON 스키마로만 답하라:",
-                    '{"schema_version":"semantic_parse.v0.1","route":"basic_lookup","intent":"character_basic_info","entities":[{"surface":"아야카","content_type_hint":"avatar","confidence":0.8}],"requested_format":"paragraph","depth":0,"is_greeting":false,"is_followup":false,"needs_official_sources":true,"risk_flags":[],"confidence":0.8,"reason":"..."}',
+                    '{"schema_version":"semantic_parse.v0.1","route":"basic_lookup","intent":"character_basic_info","entities":[{"surface":"아야카","content_type_hint":"avatar","confidence":0.8}],"requested_format":"paragraph","requested_style":"default","depth":0,"is_greeting":false,"is_followup":false,"needs_official_sources":true,"needs_evidence":false,"needs_raw_source":false,"unsupported_reason":null,"risk_flags":[],"confidence":0.8,"reason":"..."}',
                     f"질문: {query}",
                 ]
             ),
@@ -131,6 +134,9 @@ def normalize_semantic_parse(data: dict[str, Any]) -> dict[str, Any]:
     requested_format = str(data.get("requested_format") or "paragraph").strip()
     if requested_format not in SEMANTIC_FORMATS:
         requested_format = "paragraph"
+    requested_style = str(data.get("requested_style") or "default").strip()
+    if requested_style not in SEMANTIC_STYLES:
+        requested_style = "default"
     entities = []
     for row in data.get("entities") or []:
         if not isinstance(row, dict):
@@ -151,10 +157,14 @@ def normalize_semantic_parse(data: dict[str, Any]) -> dict[str, Any]:
         "intent": clean_text(str(data.get("intent") or "")) or None,
         "entities": entities,
         "requested_format": requested_format,
+        "requested_style": requested_style,
         "depth": clamp_int(data.get("depth"), default=0, minimum=0, maximum=3),
         "is_greeting": bool(data.get("is_greeting")),
         "is_followup": bool(data.get("is_followup")),
         "needs_official_sources": bool(data.get("needs_official_sources", True)),
+        "needs_evidence": bool(data.get("needs_evidence")),
+        "needs_raw_source": bool(data.get("needs_raw_source")),
+        "unsupported_reason": clean_text(str(data.get("unsupported_reason") or "")) or None,
         "risk_flags": [clean_text(str(value)) for value in data.get("risk_flags") or [] if clean_text(str(value))],
         "confidence": clamp_float(data.get("confidence"), default=0.0),
         "reason": clean_text(str(data.get("reason") or "")),

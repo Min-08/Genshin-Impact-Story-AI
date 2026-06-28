@@ -2,21 +2,21 @@
 
 이 문서는 `docs/`에 이미 적혀 있는 문제점, 한계, 리스크, 미구현 항목만 한곳에 모은 요약이다. 원문 문서는 수정하지 않고, 추적하기 쉽도록 출처를 함께 남긴다.
 
-## 1. 지금 고쳐야 하는 구현 품질 문제
+## 1. v0.6.x에서 정리된 구현 품질 문제와 남은 후속 과제
 
 ### 1.1 LLM 출력의 필수 필드 검증 부족
 
 - 문제: LLM rewriter가 `draft_answer`에 있던 필수 정보를 `final_answer`에서 누락해도 validator가 통과할 수 있다.
 - 예: 캐릭터 답변에서 `돌파 보너스` 같은 항목이 빠져도 `validation.ok=true`가 될 수 있다.
 - 영향: `basic_lookup` 답변이 정형 facts를 잃어도 정상 답변처럼 보인다.
-- 정리된 해결 방향: intent별 required field를 정의하고, 누락 시 LLM 답변을 폐기한 뒤 `draft_answer`로 fallback한다.
+- 상태: v0.6.2~v0.6.4에서 style-aware required fragment 검증과 LLM fallback은 강화됐다. claim-level semantic validator는 후속 과제다.
 - 출처: `docs/research/CURRENT_STATUS_AND_STAGE_DECISIONS.md` 7.1
 
 ### 1.2 무기 제련 효과 표현이 오해를 만들 수 있음
 
 - 문제: 무기 효과가 `1재련 효과`처럼 출력되면, 사용자가 효과가 1재련에 고정된 것처럼 이해할 수 있다.
 - 영향: 제련 단계별 수치 변화가 있는 무기 설명에서 UX와 정확성이 떨어진다.
-- 정리된 해결 방향: 제련 단계별 효과를 모두 보여주거나, compact 모드에서는 `1재련 기준 효과`와 `수치는 제련 단계에 따라 증가`를 함께 표기한다.
+- 상태: v0.6.3에서 default는 R1 기준 효과와 detail 안내를 출력하고, detail 요청에서 R1~R5를 출력하도록 정리됐다.
 - 출처: `docs/research/CURRENT_STATUS_AND_STAGE_DECISIONS.md` 7.2
 
 ### 1.3 캐릭터 facts가 기본 프로필 중심으로 부족함
@@ -30,12 +30,14 @@
 
 - 문제 묶음: validator 누락, facts extractor 누락, `basic_lookup` 출력 오류, LLM fallback 문제, 테스트 부족.
 - 영향: 현재 실제로 구현된 기능의 정확도와 안전성에 직접 영향을 준다.
+- 상태: v0.6.1~v0.6.4에서 no-LLM/LLM answer evaluation은 모두 100% 통과한다. 남은 품질 과제는 Source Reader/Evidence Pack 통합 이후 claim/source validator로 옮겨간다.
 - 출처: `docs/research/CURRENT_STATUS_AND_STAGE_DECISIONS.md` 11.1
 
 ### 1.5 route와 QA 동작 불일치 이슈
 
 - 문제: `route=analysis`인데 `intent=character_basic_info`처럼 표시/실행 계층이 어긋날 수 있다.
 - 추가 문제: 일반 인사말 `안녕`이 캐릭터 대사 검색 hit를 통해 말라니 기본정보로 답변되는 사례가 있다.
+- 상태: v0.6.2에서 AnswerPlan과 hard guard를 추가해 이번 평가셋 범위의 route/intent mismatch, greeting 오탐, unsupported guide/meta 승격 문제를 막았다.
 - 상세 기록: `docs/issues/ROUTING_QA_ISSUES.md`
 
 ## 2. 현재 검색엔진 한계
@@ -75,7 +77,7 @@
 
 ### 3.2 Source Reader와 Summary Index가 다음 단계로 남아 있음
 
-- 문제: 검색 hit를 원문 읽기 세션으로 확장하고, 핵심 주장을 원문 span에 고정하는 구조가 아직 다음 단계다.
+- 문제: Source Reader v0.1은 구현되어 있지만, 검색 hit/직전 답변 source metadata를 원문 window와 evidence pin으로 확장하고 핵심 주장을 원문 span에 고정하는 구조는 아직 다음 단계다.
 - 영향: 분석/연구 답변에서 인용 가능한 근거 span 추적이 제한된다.
 - 출처: `docs/research/CURRENT_STATUS_AND_STAGE_DECISIONS.md` 구현 상태 표, `docs/research/RESEARCH_AGENT_DISCUSSION_EVALUATION.md` 권장 구현 순서
 
@@ -149,23 +151,23 @@
 
 ## 7. 우선순위 요약
 
-지금 바로 고칠 문제:
+v0.6.x에서 우선 정리된 문제:
 
 ```text
 1. LLM required-field validator 강화
 2. basic_lookup 출력 오류 정리
 3. 무기 제련 효과 표현 개선
-4. 캐릭터 facts extractor 확장
-5. route/intent 불일치와 인사말 오탐 방지
-6. 관련 테스트 케이스 추가
+4. route/intent 불일치와 인사말 오탐 방지
+5. unsupported guide/meta request hard guard
+6. 관련 테스트/평가 케이스 추가
 ```
 
 다음 단계에서 구현할 문제:
 
 ```text
-1. Source Reader
-2. Summary Index
-3. route별 writer
+1. Source Reader v0.1과 Evidence Pack 통합
+2. Summary Scope/Index
+3. summary/analysis/research route별 writer
 4. Evidence Span 고정
 5. 벡터 검색
 6. 모티프/공출현/유사문장/번역차이 인덱스

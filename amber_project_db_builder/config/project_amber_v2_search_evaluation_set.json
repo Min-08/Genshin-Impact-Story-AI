@@ -1,0 +1,116 @@
+{
+  "version": "0.1.0",
+  "description": "Smoke/regression set for Project Amber v2 text-unit search. This evaluates v2 SQLite retrieval directly, not the answer engine.",
+  "default_limit": 10,
+  "default_mode": "unicode",
+  "cases": [
+    {
+      "id": "v2_reliquary_emblem_exact",
+      "query": "절연의 기치",
+      "language": "ko",
+      "content_type": "reliquary",
+      "expected_canonical_ids": ["project_amber:reliquary:15020"],
+      "expected_content_types": ["reliquary"],
+      "expected_languages": ["ko"],
+      "required_fragments": ["절연의 기치"],
+      "notes": "동명 GCG 카드가 있어 content_type 필터가 성유물 원문으로 제한되는지 확인한다."
+    },
+    {
+      "id": "v2_avatar_furina_exact",
+      "query": "푸리나",
+      "language": "ko",
+      "content_type": "avatar",
+      "expected_canonical_ids": ["project_amber:avatar:10000089"],
+      "expected_content_types": ["avatar"],
+      "expected_languages": ["ko"],
+      "required_fragments": ["푸리나"]
+    },
+    {
+      "id": "v2_weapon_mistsplitter_exact",
+      "query": "안개를 가르는 회광",
+      "language": "ko",
+      "content_type": "weapon",
+      "expected_canonical_ids": ["project_amber:weapon:11509"],
+      "expected_content_types": ["weapon"],
+      "expected_languages": ["ko"],
+      "required_fragments": ["안개를 가르는 회광"]
+    },
+    {
+      "id": "v2_book_before_sun_and_moon",
+      "query": "일월 과거사",
+      "language": "ko",
+      "content_type": "book",
+      "expected_canonical_ids": ["project_amber:book:1036"],
+      "expected_content_types": ["book"],
+      "expected_languages": ["ko"],
+      "required_fragments": ["일월 과거사"]
+    },
+    {
+      "id": "v2_quest_caribert_khaenriah",
+      "query": "카리베르트 켄리아",
+      "language": "ko",
+      "content_type": "quest",
+      "expected_canonical_ids": ["project_amber:quest:1308"],
+      "expected_content_types": ["quest"],
+      "expected_languages": ["ko"],
+      "required_fragments": ["켄리아"]
+    },
+    {
+      "id": "v2_quest_loom_of_fate",
+      "query": "운명의 베틀",
+      "language": "ko",
+      "content_type": "quest",
+      "expected_canonical_ids": ["project_amber:quest:1503", "project_amber:quest:1308"],
+      "expected_content_types": ["quest"],
+      "expected_languages": ["ko"],
+      "required_fragments": ["운명의 베틀"]
+    },
+    {
+      "id": "v2_quest_irminsul",
+      "query": "세계수",
+      "language": "ko",
+      "content_type": "quest",
+      "expected_canonical_ids": ["project_amber:quest:1307"],
+      "expected_content_types": ["quest"],
+      "expected_languages": ["ko"],
+      "required_fragments": ["세계수"]
+    },
+    {
+      "id": "v2_quest_nibelung",
+      "query": "니벨룽겐",
+      "language": "ko",
+      "content_type": "quest",
+      "expected_canonical_ids": ["project_amber:quest:1608", "project_amber:quest:2039"],
+      "expected_content_types": ["quest"],
+      "expected_languages": ["ko"],
+      "required_fragments": ["니벨룽겐"]
+    },
+    {
+      "id": "v2_book_phanes",
+      "query": "파네스",
+      "language": "ko",
+      "content_type": "book",
+      "expected_canonical_ids": ["project_amber:book:1036"],
+      "expected_content_types": ["book"],
+      "expected_languages": ["ko"],
+      "required_fragments": ["파네스"]
+    },
+    {
+      "id": "v2_quest_heavenly_principles",
+      "query": "천리",
+      "language": "ko",
+      "content_type": "quest",
+      "expected_canonical_ids": ["project_amber:quest:1103", "project_amber:quest:1308"],
+      "expected_content_types": ["quest"],
+      "expected_languages": ["ko"],
+      "required_fragments": ["천리"]
+    }
+  ],
+  "thresholds": {
+    "canonical_recall_at_k": 0.9,
+    "content_type_recall": 1.0,
+    "language_recall": 1.0,
+    "required_fragment_recall": 1.0,
+    "mrr": 0.85
+  }
+}
