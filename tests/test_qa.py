@@ -304,6 +304,61 @@ def test_route_answer_query_exact_character_defaults_to_basic_lookup() -> None:
     assert route["intent"] == "character_basic_info"
 
 
+def test_generic_category_query_requires_specific_entity() -> None:
+    result = answer_question(".", "성유물에 대해서 알려줘", use_llm=False)
+
+    assert result["canonical_id"] is None
+    assert result["content_type"] is None
+    assert result["route"]["mode"] == "unsupported"
+    assert result["route"]["needs_clarification"] is True
+    assert result["route"]["unsupported_reason"] == "clarification_required_entity"
+    assert "구체적인 이름" in result["final_answer"]
+
+
+def test_avatar_effect_query_does_not_fallback_to_reliquary() -> None:
+    result = answer_question(".", "아야카의 돌파효과에 대해서 알려줘", use_llm=False)
+
+    assert result["canonical_id"] is None
+    assert result["content_type"] is None
+    assert result["route"]["mode"] == "unsupported"
+    assert result["route"]["needs_clarification"] is True
+    assert result["route"]["unsupported_reason"] == "ambiguous_avatar_ascension"
+    assert "돌파 보너스" in result["final_answer"]
+
+
+def test_exact_character_constellation_still_basic_lookup() -> None:
+    result = answer_question(".", "아야카 별자리", use_llm=False)
+
+    assert result["route"]["mode"] == "basic_lookup"
+    assert result["intent"] == "character_constellation"
+    assert result["content_type"] == "avatar"
+    assert result["canonical_id"] == "project_amber:avatar:10000002"
+
+
+def test_intent_only_query_without_context_requires_clarification() -> None:
+    result = answer_question(".", "별자리", use_llm=False)
+
+    assert result["canonical_id"] is None
+    assert result["route"]["mode"] == "unsupported"
+    assert result["route"]["needs_clarification"] is True
+    assert result["route"]["unsupported_reason"] == "clarification_required_entity"
+
+
+def test_intent_only_followup_uses_active_entity() -> None:
+    state = ConversationState()
+    first = answer_question(".", "아야카에 대해서 알려줘", use_llm=False, conversation_state=state)
+    state.update_from_result(first)
+
+    result = answer_question(".", "별자리", use_llm=False, conversation_state=state)
+
+    assert result["route"]["mode"] == "basic_lookup"
+    assert result["route"]["context_used"] is True
+    assert result["resolved_query"] == "카미사토 아야카 별자리"
+    assert result["intent"] == "character_constellation"
+    assert result["content_type"] == "avatar"
+    assert result["canonical_id"] == "project_amber:avatar:10000002"
+
+
 def test_conversation_state_resolves_story_detail_and_evidence_followups() -> None:
     state = ConversationState()
     first = answer_question(".", "푸리나 알려줘", use_llm=False, conversation_state=state)

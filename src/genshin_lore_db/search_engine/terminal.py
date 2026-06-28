@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from genshin_lore_db.search_engine.conversation import ConversationState
-from genshin_lore_db.search_engine.local_llm import DEFAULT_OLLAMA_MODEL
+from genshin_lore_db.search_engine.local_llm import DEFAULT_OLLAMA_MODEL, ensure_local_llm_ready
 from genshin_lore_db.search_engine.qa import answer_question
 
 
@@ -22,26 +22,35 @@ def run_terminal_qa(
     model: str = DEFAULT_OLLAMA_MODEL,
     json_output: bool = False,
     once: str | None = None,
+    auto_start_llm: bool = True,
 ) -> int:
     root_path = Path(root).resolve()
     configure_utf8_stdio()
     conversation_state = ConversationState()
+    effective_use_llm, llm_startup = prepare_terminal_llm(
+        use_llm=use_llm,
+        model=model,
+        auto_start_llm=auto_start_llm,
+    )
 
     if once:
         result = answer_terminal_query(
             root_path,
             once,
-            use_llm=use_llm,
+            use_llm=effective_use_llm,
             use_routing=use_routing,
             model=model,
             conversation_state=conversation_state,
+            llm_startup_status=llm_startup,
         )
         emit_result(result, json_output=json_output)
         conversation_state.update_from_result(result)
         return 0
 
     print("Genshin Lore QA terminal")
-    print(f"LLM: {'on' if use_llm else 'off'} | routing: {'on' if use_routing else 'off'} | model: {model}")
+    print(f"LLM: {terminal_llm_label(llm_startup)} | routing: {'on' if use_routing else 'off'} | model: {model}")
+    if llm_startup.get("message") and not llm_startup.get("available") and llm_startup.get("status") != "disabled":
+        print(f"[warning] {llm_startup['message']}", file=sys.stderr)
     print("질문을 입력하세요. 종료하려면 exit, quit, q를 입력하세요.")
     print()
 
@@ -64,10 +73,11 @@ def run_terminal_qa(
             result = answer_terminal_query(
                 root_path,
                 query,
-                use_llm=use_llm,
+                use_llm=effective_use_llm,
                 use_routing=use_routing,
                 model=model,
                 conversation_state=conversation_state,
+                llm_startup_status=llm_startup,
             )
         except Exception as exc:  # noqa: BLE001 - terminal loop should keep running.
             print(f"[error] {type(exc).__name__}: {exc}", file=sys.stderr)
@@ -85,11 +95,42 @@ def answer_terminal_query(
     use_routing: bool,
     model: str,
     conversation_state: ConversationState | None = None,
+    llm_startup_status: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     result = answer_question(root, query, use_llm=use_llm, model=model, conversation_state=conversation_state)
+    if llm_startup_status is not None:
+        result["llm_startup"] = llm_startup_status
     if not use_routing:
         result.pop("route", None)
     return result
+
+
+def prepare_terminal_llm(*, use_llm: bool, model: str, auto_start_llm: bool) -> tuple[bool, dict[str, Any]]:
+    if not use_llm:
+        return False, {
+            "available": False,
+            "status": "disabled",
+            "server_reachable": False,
+            "model_available": False,
+            "auto_start_attempted": False,
+            "auto_started": False,
+            "model": model,
+            "message": "Local LLM disabled by --no-llm.",
+        }
+    status = ensure_local_llm_ready(model=model, auto_start=auto_start_llm)
+    return bool(status.get("available")), status
+
+
+def terminal_llm_label(status: dict[str, Any]) -> str:
+    if status.get("status") == "disabled":
+        return "disabled"
+    if status.get("available"):
+        return "available"
+    if status.get("status") == "model_missing":
+        return "missing model"
+    if status.get("status") == "ollama_missing":
+        return "fallback-only (Ollama missing)"
+    return "fallback-only (server unavailable)"
 
 
 def emit_result(result: dict[str, Any], *, json_output: bool) -> None:
@@ -116,11 +157,15 @@ def status_line(result: dict[str, Any]) -> str:
         if route.get("context_used"):
             parts.append(f"context={route.get('context_reference') or 'used'}")
     parts.append(f"intent={result.get('intent', 'unknown')}")
-    parts.append(f"llm={llm_status(result.get('llm'))}")
+    parts.append(f"llm={llm_status(result.get('llm'), result.get('llm_startup'))}")
     return "[" + " | ".join(parts) + "]"
 
 
-def llm_status(llm: Any) -> str:
+def llm_status(llm: Any, startup: Any = None) -> str:
+    if isinstance(startup, dict) and startup.get("status") == "disabled":
+        return "off"
+    if isinstance(startup, dict) and not startup.get("available") and startup.get("status"):
+        return f"fallback:{startup['status']}"
     if not isinstance(llm, dict):
         return "unknown"
     if not llm.get("enabled"):

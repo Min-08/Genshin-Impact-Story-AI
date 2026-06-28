@@ -10,11 +10,13 @@
 python scripts/lore_search_engine.py route "세계수와 기억 조작 연결 가능성"
 python scripts/lore_search_engine.py search "천리" --limit 5
 python scripts/lore_search_engine.py search "Khaenri'ah" --limit 5
+python scripts/lore_search_engine.py search "Khaenri'ah" --db-version v1 --limit 5
 python scripts/lore_search_engine.py investigate "페이몬의 정체와 천리 관련 근거" --limit 12
 python scripts/lore_search_engine.py answer "절연의 기치 효과 알려줘" --no-llm --text
 python scripts/lore_chat.py
 python scripts/eval_answer_engine.py --fail-under
 python scripts/eval_search_engine.py
+python scripts/eval_search_engine.py --db-version v1
 ```
 
 `search`는 검색 결과를 그대로 보여주고, `investigate`는 연구용 Evidence Pack과 LLM 프롬프트 패키지 생성을 목표로 합니다. `answer`는 정답형 QA용입니다.

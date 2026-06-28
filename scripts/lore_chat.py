@@ -15,6 +15,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Interactive terminal QA for the Genshin lore search engine.")
     parser.add_argument("--no-llm", action="store_true", help="로컬 LLM 재작성 없이 템플릿 답변만 출력")
     parser.add_argument("--no-route", action="store_true", help="질문 라우팅 상태 표시를 끔")
+    parser.add_argument("--no-auto-start-llm", action="store_true", help="Ollama 서버를 자동 시작하지 않음")
     parser.add_argument("--model", default=DEFAULT_OLLAMA_MODEL, help="Ollama 모델 이름")
     parser.add_argument("--json", action="store_true", help="최종 답변 대신 전체 JSON 결과를 출력")
     parser.add_argument("--once", help="대화형 루프 없이 질문 한 번만 실행하고 종료")
@@ -27,6 +28,7 @@ def main() -> int:
         model=args.model,
         json_output=args.json,
         once=args.once,
+        auto_start_llm=not args.no_auto_start_llm,
     )
 
 

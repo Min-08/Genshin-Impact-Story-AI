@@ -60,6 +60,11 @@ BRIEF_STYLE_TERMS = {"요약", "간단", "짧게", "핵심만"}
 DETAIL_STYLE_TERMS = {"자세히", "전체", "전부", "R1", "R2", "R3", "R4", "R5", "r1", "r2", "r3", "r4", "r5", "제련별", "수치"}
 RAW_STYLE_TERMS = {"원문", "raw", "RAW", "그대로"}
 EVIDENCE_STYLE_TERMS = {"근거", "출처", "source", "evidence"}
+GENERIC_LOOKUP_CATEGORY_TERMS = {"성유물", "무기", "캐릭터"}
+LOW_INFORMATION_REMAINDERS = {"", "에", "에대해", "에대해서", "의", "은", "는", "을", "를", "가", "이"}
+ASCENSION_EFFECT_TERMS = {"돌파효과", "돌파 효과"}
+ASCENSION_BONUS_TERMS = {"돌파보너스", "돌파 보너스"}
+INTENT_ONLY_FOLLOWUP_TERMS = set(CONSTELLATION_TERMS) | set(TALENT_TERMS) | {"C1", "C2", "C3", "C4", "C5", "C6", "c1", "c2", "c3", "c4", "c5", "c6"}
 
 ELEMENT_LABELS = {
     "Fire": "불",
@@ -299,6 +304,17 @@ def route_answer_query(
             context=context,
         )
 
+    clarification_reason = lookup_clarification_reason(effective_query)
+    if clarification_reason:
+        return clarification_route(
+            reason=clarification_reason,
+            query=effective_query,
+            requested_format=requested_format,
+            requested_style=requested_style,
+            context=context,
+            model=model,
+        )
+
     has_story_summary = looks_like_story_summary(effective_query)
     has_relation_or_research = rule.get("mode") in {"research"} or any(
         str(signal).startswith("relation:") for signal in rule.get("signals") or []
@@ -306,6 +322,16 @@ def route_answer_query(
     allow_exact_lookup = not has_relation_or_research and not has_story_summary
     resolution = resolve_qa_target(search_db, effective_query, language=language) if allow_exact_lookup else None
     intent = classify_lookup_intent(effective_query, resolution)
+    if resolution and resolution.get("content_type") == "avatar" and is_ambiguous_avatar_ascension_query(effective_query):
+        return clarification_route(
+            reason="ambiguous_avatar_ascension",
+            query=effective_query,
+            requested_format=requested_format,
+            requested_style=requested_style,
+            context=context,
+            model=model,
+            resolution=resolution,
+        )
     if resolution and not has_relation_or_research:
         route = {
             "mode": "basic_lookup",
@@ -443,6 +469,96 @@ def should_attempt_basic_lookup(query: str, *, route: dict[str, Any] | None = No
     return not contains_unsupported_answer_term(query)
 
 
+def clarification_route(
+    *,
+    reason: str,
+    query: str,
+    requested_format: str,
+    requested_style: str,
+    context: dict[str, Any],
+    model: str,
+    resolution: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    route = {
+        "mode": "unsupported",
+        "confidence": 0.94,
+        "signals": [f"clarification:{reason}"],
+        "reason": clarification_reason_text(reason),
+        "needs_clarification": True,
+    }
+    plan = AnswerPlan(
+        route="unsupported",
+        intent="clarification_required",
+        requested_style=requested_style,
+        detail_level=detail_level_for_style(requested_style),
+        context_reference=context.get("context_reference"),
+        context_used=bool(context.get("context_used")),
+        needs_clarification=True,
+        unsupported_reason=reason,
+        confidence=float(route["confidence"]),
+        parser="deterministic",
+    )
+    return finalize_route(
+        route,
+        intent="clarification_required",
+        requested_format=requested_format,
+        requested_style=requested_style,
+        plan=plan,
+        semantic_state=semantic_parse_state("", use_llm=False, model=model),
+        context=context,
+        resolution=resolution,
+        resolved_query=query,
+        unsupported_reason=reason,
+    )
+
+
+def clarification_reason_text(reason: str) -> str:
+    if reason == "ambiguous_avatar_ascension":
+        return "캐릭터 돌파효과 표현이 별자리, 특성, 돌파 보너스 중 무엇을 뜻하는지 모호합니다."
+    return "정답형 조회에는 구체적인 성유물, 무기, 캐릭터 이름이 필요합니다."
+
+
+def lookup_clarification_reason(query: str) -> str | None:
+    if is_generic_category_lookup(query) or is_intent_only_lookup(query):
+        return "clarification_required_entity"
+    return None
+
+
+def is_generic_category_lookup(query: str) -> bool:
+    normalized = normalize_alias(query)
+    if not any(normalize_alias(term) in normalized for term in GENERIC_LOOKUP_CATEGORY_TERMS):
+        return False
+    remainder = normalize_alias(strip_query_hints(query))
+    return is_low_information_remainder(remainder)
+
+
+def is_intent_only_lookup(query: str) -> bool:
+    remainder = normalize_alias(strip_query_hints(query))
+    remainder = remainder.replace("보여줘", "").replace("알려줘", "").replace("까지", "")
+    if is_low_information_remainder(remainder):
+        return False
+    intent_terms = {normalize_alias(term) for term in INTENT_ONLY_FOLLOWUP_TERMS if normalize_alias(term)}
+    if remainder in intent_terms:
+        return True
+    return bool(re.fullmatch(r"c[1-6]", remainder.casefold()))
+
+
+def is_ambiguous_avatar_ascension_query(query: str) -> bool:
+    normalized = normalize_alias(query)
+    has_ambiguous_ascension = any(normalize_alias(term) in normalized for term in ASCENSION_EFFECT_TERMS)
+    if not has_ambiguous_ascension:
+        return False
+    explicit_terms = set(ASCENSION_BONUS_TERMS) | {"별자리", "운명의 자리", "운명의자리", "특성", "패시브", "C1", "C2", "C3", "C4", "C5", "C6"}
+    return not any(normalize_alias(term) in normalized for term in explicit_terms if normalize_alias(term))
+
+
+def is_low_information_remainder(value: str) -> bool:
+    compact = normalize_alias(value)
+    if compact in LOW_INFORMATION_REMAINDERS:
+        return True
+    return len(compact) <= 1
+
+
 def finalize_route(
     route: dict[str, Any],
     *,
@@ -470,6 +586,8 @@ def finalize_route(
     )
     if resolved_query:
         route["resolved_query"] = resolved_query
+    if plan.needs_clarification:
+        route["needs_clarification"] = True
     reason = unsupported_reason or plan.unsupported_reason
     if reason:
         route["unsupported_reason"] = reason
@@ -507,6 +625,13 @@ def resolve_conversation_context(query: str, state: ConversationState | None) ->
             "route": "summary",
             "resolved_query": f"{active_name} 스토리 요약",
             "requested_style": "default",
+            "context_reference": "last_entity",
+            "context_used": True,
+        }
+    if is_intent_only_lookup(query):
+        return {
+            "route": "basic_lookup",
+            "resolved_query": f"{active_name} {query}",
             "context_reference": "last_entity",
             "context_used": True,
         }
@@ -648,16 +773,18 @@ def resolve_qa_target(db_path: Path, query: str, *, language: str = DEFAULT_LANG
         title_norm = normalize_alias(title)
         if not title_norm:
             continue
-        score = 0
+        lexical_score = 0
         if title_norm in original_norm:
-            score += len(title_norm) * 10
+            lexical_score += len(title_norm) * 10
         if title_norm in query_norm:
-            score += len(title_norm) * 12
+            lexical_score += len(title_norm) * 12
         token_score = sum(1 for token in title.split() if normalize_alias(token) in original_norm)
-        score += token_score * 4
+        lexical_score += token_score * 4
+        if lexical_score <= 0:
+            continue
+        score = lexical_score
         score += content_type_hint_score(query, str(row.get("content_type") or ""))
-        if score > 0:
-            scored.append((score, len(title_norm), row))
+        scored.append((score, len(title_norm), row))
     if scored:
         scored.sort(key=lambda item: (item[0], item[1]), reverse=True)
         return dict(scored[0][2])
@@ -1407,8 +1534,8 @@ def evidence_answer(
 
 
 def unsupported_answer(query: str, db_path: Path, *, route: dict[str, Any] | None = None) -> dict[str, Any]:
-    message = "지원하는 정답형 QA 대상을 찾지 못했습니다. 현재는 성유물, 무기, 캐릭터 기본정보를 지원합니다."
     route = route or route_query(query).to_dict()
+    message = unsupported_message(route)
     return {
         "query": query,
         "canonical_id": None,
@@ -1433,3 +1560,18 @@ def unsupported_answer(query: str, db_path: Path, *, route: dict[str, Any] | Non
         "answer_plan": route.get("answer_plan"),
         "semantic_parse": route.get("semantic_parse"),
     }
+
+
+def unsupported_message(route: dict[str, Any]) -> str:
+    reason = str(route.get("unsupported_reason") or "")
+    if reason == "clarification_required_entity":
+        return (
+            "구체적인 이름을 입력해 주세요. 예: 절연의 기치 효과, 안개를 가르는 회광 정보, "
+            "아야카 별자리처럼 성유물, 무기, 캐릭터 이름을 함께 써야 합니다."
+        )
+    if reason == "ambiguous_avatar_ascension":
+        return (
+            "캐릭터의 돌파효과는 의미가 모호합니다. 돌파 보너스를 원하면 '돌파 보너스', "
+            "운명의 자리를 원하면 '별자리', 스킬/패시브를 원하면 '특성'이라고 써 주세요."
+        )
+    return "지원하는 정답형 QA 대상을 찾지 못했습니다. 현재는 성유물, 무기, 캐릭터 기본정보를 지원합니다."

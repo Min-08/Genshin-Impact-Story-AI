@@ -45,6 +45,7 @@
         "properties": {
           "source_id": {"type": "string"},
           "result_id": {"type": "string"},
+          "unit_id": {"type": ["string", "null"]},
           "canonical_id": {"type": ["string", "null"]},
           "document_id": {"type": ["string", "null"]},
           "support_type": {"type": "string"},

@@ -14,6 +14,14 @@ from genshin_lore_db.search_engine.local_llm import DEFAULT_OLLAMA_MODEL
 from genshin_lore_db.search_engine.llm import build_reasoning_prompt
 from genshin_lore_db.search_engine.qa import answer_question, route_answer_query
 from genshin_lore_db.search_engine.terminal import run_terminal_qa
+from genshin_lore_db.search_engine.v2_engine import ProjectAmberV2SearchEngine
+
+
+def open_developer_search_engine(root: Path, db_version: str, db: str | None = None):
+    db_root = Path(db) if db else root
+    if db_version == "v1":
+        return LoreSearchEngine.open(db_root)
+    return ProjectAmberV2SearchEngine.open(db_root)
 
 
 def main() -> int:
@@ -36,6 +44,7 @@ def main() -> int:
     chat_parser = subparsers.add_parser("chat")
     chat_parser.add_argument("--no-llm", action="store_true", help="로컬 LLM 재작성 없이 템플릿 답변만 출력")
     chat_parser.add_argument("--no-route", action="store_true", help="질문 라우팅 상태 표시를 끔")
+    chat_parser.add_argument("--no-auto-start-llm", action="store_true", help="Ollama 서버를 자동 시작하지 않음")
     chat_parser.add_argument("--model", default=DEFAULT_OLLAMA_MODEL, help="Ollama 모델 이름")
     chat_parser.add_argument("--json", action="store_true", help="최종 답변 대신 전체 JSON 결과를 출력")
     chat_parser.add_argument("--once", help="대화형 루프 없이 질문 한 번만 실행하고 종료")
@@ -43,10 +52,13 @@ def main() -> int:
     for command in ["search", "investigate"]:
         sub = subparsers.add_parser(command)
         sub.add_argument("query")
+        sub.add_argument("--db", help="Override the default search DB path")
+        sub.add_argument("--db-version", choices=["v2", "v1"], default="v2", help="Search DB version to use")
         sub.add_argument("--limit", type=int, default=20 if command == "search" else 40)
         sub.add_argument("--language", help="ko, en, ja, zh-Hans, und")
         sub.add_argument("--category", help="예: 여행 기록, 아카이브, 캐릭터")
         sub.add_argument("--content-type", help="예: quest, book, avatar")
+        sub.add_argument("--mode", choices=["unicode", "trigram"], default="unicode")
         sub.add_argument("--include-textmap", action="store_true", default=command == "investigate")
         sub.add_argument("--out", help="JSON 결과를 저장할 경로")
         sub.add_argument("--prompt-out", help="investigate 결과에서 LLM 프롬프트 패키지를 저장할 경로")
@@ -60,6 +72,7 @@ def main() -> int:
             model=args.model,
             json_output=args.json,
             once=args.once,
+            auto_start_llm=not args.no_auto_start_llm,
         )
 
     if args.command == "route":
@@ -67,25 +80,33 @@ def main() -> int:
     elif args.command == "answer":
         result = answer_question(ROOT, args.query, use_llm=not args.no_llm, model=args.model)
     else:
-        engine = LoreSearchEngine.open(ROOT)
+        try:
+            engine = open_developer_search_engine(ROOT, args.db_version, args.db)
+        except (FileNotFoundError, IsADirectoryError) as exc:
+            sys.stderr.write(str(exc) + "\n")
+            return 2
     if args.command == "search":
-        result = engine.search(
-            args.query,
-            limit=args.limit,
-            language=args.language,
-            category=args.category,
-            content_type=args.content_type,
-            include_textmap=args.include_textmap,
-        )
+        search_kwargs = {
+            "limit": args.limit,
+            "language": args.language,
+            "category": args.category,
+            "content_type": args.content_type,
+            "include_textmap": args.include_textmap,
+        }
+        if args.db_version == "v2":
+            search_kwargs["mode"] = args.mode
+        result = engine.search(args.query, **search_kwargs)
     elif args.command == "investigate":
-        result = engine.investigate(
-            args.query,
-            limit=args.limit,
-            language=args.language,
-            category=args.category,
-            content_type=args.content_type,
-            include_textmap=args.include_textmap,
-        )
+        investigate_kwargs = {
+            "limit": args.limit,
+            "language": args.language,
+            "category": args.category,
+            "content_type": args.content_type,
+            "include_textmap": args.include_textmap,
+        }
+        if args.db_version == "v2":
+            investigate_kwargs["mode"] = args.mode
+        result = engine.investigate(args.query, **investigate_kwargs)
         if args.prompt_out:
             write_json(Path(args.prompt_out), build_reasoning_prompt(result))
     if args.out:

@@ -2,14 +2,179 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
 import socket
+import subprocess
+import time
 import urllib.error
 import urllib.request
+from pathlib import Path
 from typing import Any
 
 
 DEFAULT_OLLAMA_URL = "http://127.0.0.1:11434"
 DEFAULT_OLLAMA_MODEL = "qwen3:4b-instruct"
+
+
+def ensure_local_llm_ready(
+    *,
+    model: str = DEFAULT_OLLAMA_MODEL,
+    base_url: str = DEFAULT_OLLAMA_URL,
+    auto_start: bool = True,
+    startup_timeout: float = 8.0,
+    request_timeout: float = 2.0,
+) -> dict[str, Any]:
+    status = {
+        "available": False,
+        "status": "server_unavailable",
+        "server_reachable": False,
+        "model_available": False,
+        "auto_start_attempted": False,
+        "auto_started": False,
+        "ollama_path": None,
+        "model": model,
+        "base_url": base_url,
+        "message": "",
+        "pull_command": f"ollama pull {model}",
+    }
+    if ollama_api_reachable(base_url=base_url, timeout=request_timeout):
+        status["server_reachable"] = True
+    elif auto_start:
+        ollama_path = find_ollama_executable()
+        status["ollama_path"] = ollama_path
+        if not ollama_path:
+            status.update(
+                {
+                    "status": "ollama_missing",
+                    "message": "Ollama is not installed or is not on PATH. Install Ollama, then run the terminal again.",
+                }
+            )
+            return status
+        status["auto_start_attempted"] = True
+        if start_ollama_server(ollama_path):
+            status["auto_started"] = True
+            status["server_reachable"] = wait_for_ollama(
+                base_url=base_url,
+                timeout=startup_timeout,
+                request_timeout=request_timeout,
+            )
+    else:
+        status["ollama_path"] = find_ollama_executable()
+
+    if not status["server_reachable"]:
+        status.update(
+            {
+                "status": "server_unavailable",
+                "message": "Ollama API is not reachable. Continuing without local LLM.",
+            }
+        )
+        return status
+
+    if not ollama_model_available(model, base_url=base_url, timeout=request_timeout):
+        status.update(
+            {
+                "status": "model_missing",
+                "model_available": False,
+                "message": f"Ollama is running, but model '{model}' is missing. Run: ollama pull {model}",
+            }
+        )
+        return status
+
+    status.update(
+        {
+            "available": True,
+            "status": "available",
+            "model_available": True,
+            "message": "Ollama local LLM is available.",
+        }
+    )
+    return status
+
+
+def find_ollama_executable() -> str | None:
+    found = shutil.which("ollama")
+    if found:
+        return found
+    candidates = [
+        Path.home() / "AppData" / "Local" / "Programs" / "Ollama" / "ollama.exe",
+        Path("C:/Program Files/Ollama/ollama.exe"),
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            return str(candidate)
+    return None
+
+
+def ensure_ollama_server(
+    ollama_path: str,
+    *,
+    base_url: str = DEFAULT_OLLAMA_URL,
+    timeout: float = 60.0,
+    request_timeout: float = 5.0,
+) -> dict[str, Any]:
+    if ollama_api_reachable(base_url=base_url, timeout=request_timeout):
+        return {"step": "ensure_server", "ok": True, "status": "already_running"}
+    if not start_ollama_server(ollama_path):
+        return {"step": "ensure_server", "ok": False, "error": "Failed to start Ollama server."}
+    if wait_for_ollama(base_url=base_url, timeout=min(timeout, 60.0), request_timeout=request_timeout):
+        return {"step": "ensure_server", "ok": True, "status": "started"}
+    return {"step": "ensure_server", "ok": False, "error": "Ollama server did not become ready."}
+
+
+def ollama_api_reachable(*, base_url: str = DEFAULT_OLLAMA_URL, timeout: float = 2.0) -> bool:
+    try:
+        with urllib.request.urlopen(base_url.rstrip("/") + "/api/version", timeout=timeout) as response:
+            return response.status == 200
+    except (OSError, urllib.error.URLError):
+        return False
+
+
+def wait_for_ollama(
+    *,
+    base_url: str = DEFAULT_OLLAMA_URL,
+    timeout: float = 8.0,
+    request_timeout: float = 2.0,
+    interval: float = 0.5,
+) -> bool:
+    deadline = time.time() + max(0.0, timeout)
+    while time.time() < deadline:
+        if ollama_api_reachable(base_url=base_url, timeout=request_timeout):
+            return True
+        time.sleep(interval)
+    return ollama_api_reachable(base_url=base_url, timeout=request_timeout)
+
+
+def start_ollama_server(ollama_path: str) -> bool:
+    creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+    try:
+        subprocess.Popen(
+            [ollama_path, "serve"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            creationflags=creationflags,
+        )
+    except OSError:
+        return False
+    return True
+
+
+def ollama_model_available(
+    model: str,
+    *,
+    base_url: str = DEFAULT_OLLAMA_URL,
+    timeout: float = 2.0,
+) -> bool:
+    try:
+        with urllib.request.urlopen(base_url.rstrip("/") + "/api/tags", timeout=timeout) as response:
+            data = json.loads(response.read().decode("utf-8"))
+    except (OSError, urllib.error.URLError, json.JSONDecodeError):
+        return False
+    for row in data.get("models") or []:
+        if not isinstance(row, dict):
+            continue
+        if model in {str(row.get("name") or ""), str(row.get("model") or "")}:
+            return True
+    return False
 
 
 def rewrite_answer_with_ollama(

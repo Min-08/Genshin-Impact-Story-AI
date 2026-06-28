@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import importlib.util
 import sqlite3
 import subprocess
 import sys
@@ -13,6 +14,7 @@ from genshin_lore_db.pipeline.project_amber_v2 import create_v2_schema, populate
 from genshin_lore_db.pipeline.project_amber_v2_audit import audit_project_amber_v2
 from genshin_lore_db.pipeline.project_amber_v2_evaluation import evaluate_project_amber_v2_search
 from genshin_lore_db.search_engine.source_reader import ProjectAmberV2SourceReader
+from genshin_lore_db.search_engine.v2_engine import ProjectAmberV2SearchEngine
 
 
 def test_project_amber_v2_audit_passes_on_consistent_fixture(tmp_path: Path) -> None:
@@ -263,6 +265,161 @@ def test_project_amber_v2_evaluator_scores_required_fragments(tmp_path: Path) ->
     assert report["aggregate"]["canonical_recall_at_k"] == 1.0
     assert report["aggregate"]["required_fragment_recall"] == 1.0
     assert report["passed_thresholds"]["required_fragment_recall"] is True
+
+
+def test_project_amber_v2_search_engine_returns_v2_shape(tmp_path: Path) -> None:
+    _, db_path = build_tiny_v2_fixture(tmp_path)
+    engine = ProjectAmberV2SearchEngine(db_path)
+
+    result = engine.search("Irminsul", language="en", content_type="quest", limit=1)
+
+    assert result["engine"]["db_version"] == "v2"
+    assert result["mode"] == "search"
+    assert result["results"][0]["result_type"] == "text_unit"
+    assert result["results"][0]["unit_id"] == "project_amber:quest:1:en:detail:unit:0"
+    assert result["results"][0]["score"] > 0
+
+
+def test_project_amber_v2_investigate_preserves_unit_id_in_evidence_pack(tmp_path: Path) -> None:
+    _, db_path = build_tiny_v2_fixture(tmp_path)
+    engine = ProjectAmberV2SearchEngine(db_path)
+
+    result = engine.investigate("Irminsul", language="en", content_type="quest", limit=1)
+
+    assert result["engine"]["db_version"] == "v2"
+    assert result["evidence_pack"]["sources"][0]["unit_id"] == "project_amber:quest:1:en:detail:unit:0"
+    assert result["evidence_pack"]["groups"][0]["support_type"] == "direct"
+
+
+def test_project_amber_v2_search_engine_warns_when_category_is_ignored(tmp_path: Path) -> None:
+    _, db_path = build_tiny_v2_fixture(tmp_path)
+    engine = ProjectAmberV2SearchEngine(db_path)
+
+    result = engine.search("Irminsul", language="en", content_type="quest", category="archive", limit=1)
+
+    assert result["warnings"][0]["code"] == "category_filter_ignored"
+    assert result["results"][0]["canonical_id"] == "project_amber:quest:1"
+
+
+def test_project_amber_v2_search_engine_reports_missing_db(tmp_path: Path) -> None:
+    missing_db = tmp_path / "missing.sqlite3"
+
+    with pytest.raises(FileNotFoundError, match="build_project_amber_v2"):
+        ProjectAmberV2SearchEngine(missing_db)
+
+
+def test_lore_search_engine_cli_defaults_search_to_v2(tmp_path: Path) -> None:
+    _, db_path = build_tiny_v2_fixture(tmp_path)
+    script = Path(__file__).resolve().parents[1] / "scripts" / "lore_search_engine.py"
+
+    completed = subprocess.run(
+        [
+            sys.executable,
+            str(script),
+            "search",
+            "Irminsul",
+            "--db",
+            str(db_path),
+            "--language",
+            "en",
+            "--content-type",
+            "quest",
+            "--limit",
+            "1",
+        ],
+        capture_output=True,
+        encoding="utf-8",
+        check=False,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    output = json.loads(completed.stdout)
+    assert output["engine"]["db_version"] == "v2"
+    assert output["results"][0]["unit_id"] == "project_amber:quest:1:en:detail:unit:0"
+
+
+def test_lore_search_engine_cli_defaults_investigate_to_v2(tmp_path: Path) -> None:
+    _, db_path = build_tiny_v2_fixture(tmp_path)
+    script = Path(__file__).resolve().parents[1] / "scripts" / "lore_search_engine.py"
+
+    completed = subprocess.run(
+        [
+            sys.executable,
+            str(script),
+            "investigate",
+            "Irminsul",
+            "--db",
+            str(db_path),
+            "--language",
+            "en",
+            "--content-type",
+            "quest",
+            "--limit",
+            "1",
+        ],
+        capture_output=True,
+        encoding="utf-8",
+        check=False,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    output = json.loads(completed.stdout)
+    assert output["engine"]["db_version"] == "v2"
+    assert output["evidence_pack"]["sources"][0]["unit_id"] == "project_amber:quest:1:en:detail:unit:0"
+
+
+def test_search_lore_cli_defaults_to_v2(tmp_path: Path) -> None:
+    _, db_path = build_tiny_v2_fixture(tmp_path)
+    script = Path(__file__).resolve().parents[1] / "scripts" / "search_lore.py"
+
+    completed = subprocess.run(
+        [
+            sys.executable,
+            str(script),
+            "Irminsul",
+            "--db",
+            str(db_path),
+            "--language",
+            "en",
+            "--content-type",
+            "quest",
+            "--limit",
+            "1",
+        ],
+        capture_output=True,
+        encoding="utf-8",
+        check=False,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    first_row = json.loads(completed.stdout.splitlines()[0])
+    assert first_row["unit_id"] == "project_amber:quest:1:en:detail:unit:0"
+
+
+def test_lore_search_engine_cli_selects_legacy_v1(monkeypatch: pytest.MonkeyPatch) -> None:
+    cli = load_lore_search_engine_cli_module()
+    sentinel = object()
+
+    def open_v1(root: Path) -> object:
+        return sentinel
+
+    def open_v2(root: Path) -> object:
+        raise AssertionError("v2 engine should not be opened")
+
+    monkeypatch.setattr(cli.LoreSearchEngine, "open", open_v1)
+    monkeypatch.setattr(cli.ProjectAmberV2SearchEngine, "open", open_v2)
+
+    assert cli.open_developer_search_engine(Path("."), "v1", "legacy.sqlite3") is sentinel
+
+
+def load_lore_search_engine_cli_module():
+    script = Path(__file__).resolve().parents[1] / "scripts" / "lore_search_engine.py"
+    spec = importlib.util.spec_from_file_location("lore_search_engine_cli_for_test", script)
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def build_tiny_v2_fixture(tmp_path: Path) -> tuple[Path, Path]:

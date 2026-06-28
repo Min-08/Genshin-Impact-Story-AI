@@ -10,6 +10,9 @@ from genshin_lore_db.normalize import clean_text
 EVIDENCE_PACK_VERSION = "evidence_pack.v0.5"
 
 GROUP_TO_SUPPORT_TYPE = {
+    "Direct text units": ("direct", "direct_mentions"),
+    "Language variants": ("translation", "translation_variants"),
+    "TextMap auxiliary": ("textmap", "textmap_auxiliary"),
     "직접 언급": ("direct", "direct_mentions"),
     "확장 개념 근거": ("expanded", "expanded_concept_evidence"),
     "배경 자료": ("background", "background_sources"),
@@ -88,6 +91,7 @@ def build_source_rows(hits: list[dict[str, Any]], evidence_groups: list[dict[str
                 "source_id": f"S{len(rows) + 1}",
                 "result_id": rid,
                 "chunk_id": hit.get("chunk_id"),
+                "unit_id": hit.get("unit_id"),
                 "textmap_id": hit.get("textmap_id"),
                 "canonical_id": hit.get("canonical_id"),
                 "document_id": hit.get("document_id"),
@@ -165,4 +169,4 @@ def quality_summary(hits: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def result_id(item: dict[str, Any]) -> str:
-    return str(item.get("id") or item.get("chunk_id") or item.get("textmap_id") or "")
+    return str(item.get("id") or item.get("chunk_id") or item.get("unit_id") or item.get("textmap_id") or "")

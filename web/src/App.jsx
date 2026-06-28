@@ -72,15 +72,13 @@ export default function App() {
 
   return (
     <div className={`aurora-app aurora-app--${view}`}>
-      <Sidebar view={view} onNavigate={go} />
+      <Sidebar onNavigate={go} />
       <main className="workspace">{screen}</main>
     </div>
   );
 }
 
-function Sidebar({ view, onNavigate }) {
-  const isHome = view === "home";
-
+function Sidebar({ onNavigate }) {
   return (
     <aside className="sidebar">
       <div className="brand-block">
@@ -94,7 +92,7 @@ function Sidebar({ view, onNavigate }) {
         <span>새 연구 시작</span>
       </button>
 
-      {isHome ? <RecentResearchHome /> : <ResearchHistory />}
+      <ResearchHistory />
 
       <div className="profile-card">
         <div className="profile-left">
@@ -103,10 +101,6 @@ function Sidebar({ view, onNavigate }) {
           </div>
           <div>
             <div className="profile-name">연구자</div>
-            <button className="profile-mode">
-              연구자 모드
-              <Icon name="chevronDown" />
-            </button>
           </div>
         </div>
         <button className="settings-button" aria-label="설정">
@@ -176,21 +170,6 @@ function HomeScreen() {
         전승, 퀘스트, 캐릭터, 모순까지 - 모든 단서를 연결해 드릴게요.
       </p>
 
-      <div className="prompt-grid">
-        <PromptCard icon="spark" title="Celestia의 목적 분석">
-          Celestia의 진짜 목적과 하늘의 뜻을 추적해 보세요.
-        </PromptCard>
-        <PromptCard icon="clock" title="카엔리아 멸망 원인">
-          금지된 지식과 심연의 충돌, 그 진실을 파헤쳐 보세요.
-        </PromptCard>
-        <PromptCard icon="user" title="여행자와 Descender 관계">
-          여행자의 기원과 Descender로서의 의미를 분석해 보세요.
-        </PromptCard>
-        <PromptCard icon="scales" title="폰타인 재판 기록 정리">
-          폰타인 재판의 전망과 숨겨진 의도를 정리해 보세요.
-        </PromptCard>
-      </div>
-
       <Composer />
     </section>
   );
@@ -230,10 +209,6 @@ function ProgressScreen() {
       </div>
 
       <SourcesPreview />
-      <div className="result-note">
-        <Icon name="spark" />
-        연구 결과는 사실 확인이 필요한 가설을 포함할 수 있습니다.
-      </div>
       <Composer generating />
     </section>
   );
@@ -265,26 +240,27 @@ function TimelineRow({ active, text, width }) {
 
 function SourcesPreview() {
   const sources = [
-    ["데이터베이스", "Celestia 운영 기록 · 관리 프로토콜", "천상 관리청 비공개 아카이브", "신뢰도 높음"],
-    ["문헌", "하늘과 땅의 권능 질서 제3권", "바르카 연대기 · 제9장", "신뢰도 높음"],
-    ["기록", "Focalors 재판 기록 원본", "심판정 공식 기록 보관소", "신뢰도 중간"],
+    ["Source 01", "Celestia 운영 기록 · 관리 프로토콜"],
+    ["Source 02", "하늘과 땅의 권능 질서 제3권"],
+    ["Source 03", "Focalors 재판 기록 원본"],
   ];
 
   return (
     <section className="source-preview">
       <h2>검색된 주요 출처 (3)</h2>
-      <div className="source-card-row">
-        {sources.map(([type, title, source, trust]) => (
-          <article className="source-card" key={title}>
-            <span className="source-type">{type}</span>
-            <strong>{title}</strong>
-            <p>{source}</p>
-            <em>{trust}</em>
+      <div className="source-accordion">
+        {sources.map(([label, title]) => (
+          <article className="evidence-row source-preview-row" key={label}>
+            <div className="evidence-head">
+              <div>
+                <Icon name="file" />
+                <strong>{label}</strong>
+                <span>{title}</span>
+              </div>
+              <Icon name="chevronDown" />
+            </div>
           </article>
         ))}
-        <button className="source-next" aria-label="다음 출처">
-          <Icon name="chevronRight" />
-        </button>
       </div>
     </section>
   );
@@ -294,7 +270,7 @@ function AnswerScreen() {
   return (
     <section className="chat-screen">
       <UserBubble />
-      <AssistantIdentity chips />
+      <AssistantIdentity />
 
       <AnswerParagraph />
       <div className="soft-divider" />
@@ -322,7 +298,7 @@ function SearchScreen() {
   return (
     <section className="chat-screen chat-screen--search">
       <UserBubble />
-      <AssistantIdentity chips />
+      <AssistantIdentity />
 
       <div className="search-panel">
         <div className="search-box">
@@ -374,7 +350,7 @@ function EvidenceScreen() {
   return (
     <section className="chat-screen chat-screen--evidence">
       <UserBubble />
-      <AssistantIdentity chips />
+      <AssistantIdentity />
       <AnswerParagraph />
       <div className="soft-divider" />
       <EvidenceRows expanded />
@@ -395,33 +371,17 @@ function UserBubble() {
   );
 }
 
-function AssistantIdentity({ chips = false }) {
+function AssistantIdentity() {
   return (
-    <div className={`assistant-area ${chips ? "assistant-area--chips" : ""}`}>
+    <div className="assistant-area">
       <div className="assistant-row">
         <div className="assistant-logo">
           <Compass />
         </div>
-        <strong>Aurora AI</strong>
+        <strong>Aurora</strong>
         <span>오전 11:32</span>
       </div>
-      {chips ? (
-        <div className="tool-chips">
-          <ToolChip tone="green" icon="circle" label="DB" />
-          <ToolChip tone="blue" icon="search" label="검색" />
-          <ToolChip tone="purple" icon="shield" label="연구 모드" />
-        </div>
-      ) : null}
     </div>
-  );
-}
-
-function ToolChip({ icon, label, tone }) {
-  return (
-    <span className={`tool-chip tool-chip--${tone}`}>
-      <Icon name={icon} />
-      {label}
-    </span>
   );
 }
 
@@ -525,20 +485,6 @@ function ExpandedEvidence() {
           ..."
         </blockquote>
       </div>
-      <aside className="research-note">
-        <div>
-          <strong>연구 노트</strong>
-          <Icon name="edit" />
-        </div>
-        <p>
-          기이함 = 원소의 과잉, 혹은 금지된 지식의 축적을 의미할 가능성이 높음.
-          Celestia는 이를 제거하거나 초기화하여 티바트의 질서를 재설정하는 역할 수행.
-        </p>
-        <footer>
-          <span>메모 작성자: 연구자</span>
-          <span>오늘 오전 11:35</span>
-        </footer>
-      </aside>
     </div>
   );
 }
@@ -608,9 +554,8 @@ function Composer({ generating = false }) {
             <Icon name="sliders" />
           </button>
           {generating ? (
-            <button className="stop-button">
+            <button className="send-button send-button--stop" aria-label="생성 중단">
               <Icon name="stop" />
-              생성 중단
             </button>
           ) : (
             <button className="send-button" aria-label="전송">

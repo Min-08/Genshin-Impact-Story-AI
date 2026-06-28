@@ -19,7 +19,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("query")
     parser.add_argument("--db")
-    parser.add_argument("--db-version", choices=["v1", "v2"], default="v1")
+    parser.add_argument("--db-version", choices=["v1", "v2"], default="v2")
     parser.add_argument("--language", help="ko, en, ja, zh-Hans, und")
     parser.add_argument("--category", help="v1 category filter, for example travel_log or archive")
     parser.add_argument("--content-type", help="content type filter, for example quest, book, avatar")

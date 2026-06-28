@@ -1,6 +1,11 @@
 from __future__ import annotations
 
-from genshin_lore_db.search_engine.local_llm import DEFAULT_OLLAMA_MODEL, safe_lead_sentence, strip_thinking_blocks
+from genshin_lore_db.search_engine.local_llm import (
+    DEFAULT_OLLAMA_MODEL,
+    ensure_local_llm_ready,
+    safe_lead_sentence,
+    strip_thinking_blocks,
+)
 from genshin_lore_db.search_engine.semantic import normalize_semantic_parse, parse_semantic_response
 
 
@@ -49,3 +54,74 @@ def test_parse_semantic_response_rejects_invalid_json() -> None:
 
     assert not parsed["ok"]
     assert parsed["error"]["type"] == "semantic_parse_invalid_json"
+
+
+def test_ensure_local_llm_ready_reports_available(monkeypatch) -> None:
+    monkeypatch.setattr("genshin_lore_db.search_engine.local_llm.ollama_api_reachable", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr("genshin_lore_db.search_engine.local_llm.ollama_model_available", lambda *_args, **_kwargs: True)
+
+    status = ensure_local_llm_ready(model=DEFAULT_OLLAMA_MODEL)
+
+    assert status["available"] is True
+    assert status["status"] == "available"
+    assert status["server_reachable"] is True
+    assert status["model_available"] is True
+
+
+def test_ensure_local_llm_ready_auto_starts_when_possible(monkeypatch) -> None:
+    calls: list[str] = []
+
+    monkeypatch.setattr("genshin_lore_db.search_engine.local_llm.ollama_api_reachable", lambda *_args, **_kwargs: False)
+    monkeypatch.setattr("genshin_lore_db.search_engine.local_llm.find_ollama_executable", lambda: "ollama")
+    monkeypatch.setattr("genshin_lore_db.search_engine.local_llm.start_ollama_server", lambda _path: calls.append("start") or True)
+    monkeypatch.setattr("genshin_lore_db.search_engine.local_llm.wait_for_ollama", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr("genshin_lore_db.search_engine.local_llm.ollama_model_available", lambda *_args, **_kwargs: True)
+
+    status = ensure_local_llm_ready(model=DEFAULT_OLLAMA_MODEL, auto_start=True)
+
+    assert status["available"] is True
+    assert status["status"] == "available"
+    assert status["auto_start_attempted"] is True
+    assert status["auto_started"] is True
+    assert calls == ["start"]
+
+
+def test_ensure_local_llm_ready_reports_missing_executable(monkeypatch) -> None:
+    monkeypatch.setattr("genshin_lore_db.search_engine.local_llm.ollama_api_reachable", lambda *_args, **_kwargs: False)
+    monkeypatch.setattr("genshin_lore_db.search_engine.local_llm.find_ollama_executable", lambda: None)
+
+    status = ensure_local_llm_ready(model=DEFAULT_OLLAMA_MODEL, auto_start=True)
+
+    assert status["available"] is False
+    assert status["status"] == "ollama_missing"
+    assert status["auto_start_attempted"] is False
+    assert "Ollama" in status["message"]
+
+
+def test_ensure_local_llm_ready_reports_missing_model(monkeypatch) -> None:
+    monkeypatch.setattr("genshin_lore_db.search_engine.local_llm.ollama_api_reachable", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr("genshin_lore_db.search_engine.local_llm.ollama_model_available", lambda *_args, **_kwargs: False)
+
+    status = ensure_local_llm_ready(model=DEFAULT_OLLAMA_MODEL)
+
+    assert status["available"] is False
+    assert status["status"] == "model_missing"
+    assert status["model_available"] is False
+    assert status["pull_command"] == "ollama pull qwen3:4b-instruct"
+    assert "ollama pull qwen3:4b-instruct" in status["message"]
+
+
+def test_ensure_local_llm_ready_no_auto_start_does_not_start(monkeypatch) -> None:
+    monkeypatch.setattr("genshin_lore_db.search_engine.local_llm.ollama_api_reachable", lambda *_args, **_kwargs: False)
+    monkeypatch.setattr("genshin_lore_db.search_engine.local_llm.find_ollama_executable", lambda: "ollama")
+
+    def fail_start(_path: str) -> bool:
+        raise AssertionError("start_ollama_server should not be called")
+
+    monkeypatch.setattr("genshin_lore_db.search_engine.local_llm.start_ollama_server", fail_start)
+
+    status = ensure_local_llm_ready(model=DEFAULT_OLLAMA_MODEL, auto_start=False)
+
+    assert status["available"] is False
+    assert status["status"] == "server_unavailable"
+    assert status["auto_start_attempted"] is False

@@ -107,6 +107,7 @@ python scripts/build_rag_assets.py
 python scripts/build_entity_aliases.py
 python scripts/build_search_engine_assets.py
 python scripts/eval_search_engine.py
+python scripts/eval_search_engine.py --db-version v1
 ```
 
 검색엔진만 다시 빌드:
@@ -121,7 +122,8 @@ python scripts/build_search_engine_assets.py
 ```powershell
 python scripts/lore_search_engine.py search "천리" --limit 5
 python scripts/lore_search_engine.py investigate "파네스와 천리의 관계" --limit 12
-python scripts/search_lore.py --db-version v2 "민들레밭의 여우" --language ko --content-type book --limit 5
+python scripts/search_lore.py "민들레밭의 여우" --language ko --content-type book --limit 5
+python scripts/search_lore.py --db-version v1 "천리" --limit 5
 ```
 
 ## Project Amber v2

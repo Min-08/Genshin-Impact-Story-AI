@@ -5,8 +5,6 @@ import json
 import shutil
 import subprocess
 import sys
-import time
-import urllib.error
 import urllib.request
 from pathlib import Path
 from typing import Any
@@ -14,7 +12,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from genshin_lore_db.search_engine.local_llm import DEFAULT_OLLAMA_MODEL, strip_thinking_blocks
+from genshin_lore_db.search_engine.local_llm import DEFAULT_OLLAMA_MODEL, ensure_ollama_server, find_ollama_executable, strip_thinking_blocks
 
 
 def main() -> int:
@@ -25,7 +23,7 @@ def main() -> int:
     args = parser.parse_args()
 
     steps: list[dict[str, Any]] = []
-    ollama = find_ollama()
+    ollama = find_ollama_executable()
     if not ollama:
         if not args.install:
             return finish(
@@ -37,7 +35,7 @@ def main() -> int:
         steps.append(install_result)
         if not install_result["ok"]:
             return finish(steps, ok=False, message="Ollama installation failed.")
-        ollama = find_ollama()
+        ollama = find_ollama_executable()
         if not ollama:
             return finish(
                 steps,
@@ -46,7 +44,7 @@ def main() -> int:
             )
 
     steps.append({"step": "find_ollama", "ok": True, "path": ollama})
-    serve_result = ensure_server(ollama, timeout=args.timeout)
+    serve_result = ensure_ollama_server(ollama, timeout=args.timeout)
     steps.append(serve_result)
     pull_result = run_command([ollama, "pull", args.model], step="pull_model", timeout=args.timeout)
     steps.append(pull_result)
@@ -58,21 +56,6 @@ def main() -> int:
     chat_result = test_chat(args.model, timeout=60)
     steps.append(chat_result)
     return finish(steps, ok=chat_result["ok"], message="Local QA model setup complete." if chat_result["ok"] else "Chat test failed.")
-
-
-def find_ollama() -> str | None:
-    found = shutil.which("ollama")
-    if found:
-        return found
-    candidates = [
-        Path.home() / "AppData" / "Local" / "Programs" / "Ollama" / "ollama.exe",
-        Path("C:/Program Files/Ollama/ollama.exe"),
-    ]
-    for candidate in candidates:
-        if candidate.exists():
-            return str(candidate)
-    return None
-
 
 def install_ollama() -> dict[str, Any]:
     winget = shutil.which("winget")
@@ -91,34 +74,6 @@ def install_ollama() -> dict[str, Any]:
         step="install_ollama",
         timeout=600,
     )
-
-
-def ensure_server(ollama: str, *, timeout: int) -> dict[str, Any]:
-    if ollama_version_ok(timeout=10):
-        return {"step": "ensure_server", "ok": True, "status": "already_running"}
-    try:
-        subprocess.Popen(
-            [ollama, "serve"],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
-    except OSError as exc:
-        return {"step": "ensure_server", "ok": False, "error": str(exc)}
-    deadline = time.time() + min(timeout, 60)
-    while time.time() < deadline:
-        if ollama_version_ok(timeout=5):
-            return {"step": "ensure_server", "ok": True, "status": "started"}
-        time.sleep(1)
-    return {"step": "ensure_server", "ok": False, "error": "Ollama server did not become ready."}
-
-
-def ollama_version_ok(*, timeout: int) -> bool:
-    try:
-        with urllib.request.urlopen("http://127.0.0.1:11434/api/version", timeout=timeout) as response:
-            return response.status == 200
-    except (OSError, urllib.error.URLError):
-        return False
-
 
 def test_chat(model: str, *, timeout: int) -> dict[str, Any]:
     payload = {

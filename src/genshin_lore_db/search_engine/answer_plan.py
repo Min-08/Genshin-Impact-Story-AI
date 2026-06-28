@@ -32,6 +32,7 @@ class AnswerPlan:
     context_used: bool = False
     needs_evidence: bool = False
     needs_raw_source: bool = False
+    needs_clarification: bool = False
     unsupported_reason: str | None = None
     confidence: float = 0.0
     parser: str = "deterministic"
@@ -73,6 +74,7 @@ def normalize_answer_plan(data: dict[str, Any] | None, *, parser: str = "llm") -
         context_used=bool(data.get("context_used")),
         needs_evidence=bool(data.get("needs_evidence")),
         needs_raw_source=bool(data.get("needs_raw_source")),
+        needs_clarification=bool(data.get("needs_clarification")),
         unsupported_reason=clean_text(str(data.get("unsupported_reason") or "")) or None,
         confidence=clamp_float(data.get("confidence"), default=0.0),
         parser=parser,
