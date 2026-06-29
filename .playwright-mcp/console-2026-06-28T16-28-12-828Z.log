@@ -1,0 +1,8 @@
+[ 1443050ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:5173/src/styles.css?t=1782665535862:0
+[ 1443051ms] [ERROR] [vite] Failed to reload /src/styles.css. This could be due to syntax errors or importing non-existent modules. (see errors above) @ http://127.0.0.1:5173/@vite/client:808
+[ 1627983ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:5173/src/styles.css?t=1782665720793:0
+[ 1627983ms] [ERROR] [vite] Failed to reload /src/styles.css. This could be due to syntax errors or importing non-existent modules. (see errors above) @ http://127.0.0.1:5173/@vite/client:808
+[ 2350087ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:5173/src/App.jsx?t=1782666442808:0
+[ 2350088ms] [ERROR] [vite] Failed to reload /src/App.jsx. This could be due to syntax errors or importing non-existent modules. (see errors above) @ http://127.0.0.1:5173/@vite/client:808
+[ 2373127ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:5173/src/styles.css?t=1782666465934:0
+[ 2373128ms] [ERROR] [vite] Failed to reload /src/styles.css. This could be due to syntax errors or importing non-existent modules. (see errors above) @ http://127.0.0.1:5173/@vite/client:808

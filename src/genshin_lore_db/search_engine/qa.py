@@ -8,7 +8,6 @@ from typing import Any
 
 from genshin_lore_db.io import read_json
 from genshin_lore_db.normalize import clean_text
-from genshin_lore_db.pipeline.project_amber_v2 import search_project_amber_v2
 from genshin_lore_db.search_engine.answer_plan import AnswerPlan, normalize_answer_plan
 from genshin_lore_db.search_engine.aliases import normalize_alias
 from genshin_lore_db.search_engine.conversation import ConversationState
@@ -17,7 +16,6 @@ from genshin_lore_db.search_engine.router import is_greeting_query, route_query
 from genshin_lore_db.search_engine.semantic import parse_query_semantics_with_ollama
 
 
-SUPPORTED_CONTENT_TYPES = {"avatar", "weapon", "reliquary"}
 DEFAULT_LANGUAGE = "ko"
 
 QUERY_HINTS = {
@@ -148,7 +146,7 @@ def answer_question(
     lookup_query = str(route.get("resolved_query") or query)
     resolution = None if contains_unsupported_answer_term(query) else resolve_qa_target(search_db, lookup_query, language=language)
     if not resolution:
-        return unsupported_answer(query, search_db, route=route)
+        return unsupported_answer(query, search_db, route=unresolved_basic_lookup_route(route))
 
     raw_path = Path(resolution["raw_ref"])
     raw_record = read_json(raw_path)
@@ -415,20 +413,38 @@ def route_answer_query(
 
     semantic_plan = normalize_answer_plan((semantic_state.get("parse") if isinstance(semantic_state, dict) else None), parser="llm")
     if not has_relation_or_research and semantic_plan and semantic_plan.route in {"basic_lookup", "summary", "analysis", "research"}:
-        route = semantic_route_candidate(semantic_state) or dict(rule)
-        if semantic_plan.route != "basic_lookup":
+        if semantic_plan.route == "basic_lookup":
+            semantic_resolution = resolve_qa_target(search_db, effective_query, language=language)
+            if semantic_resolution:
+                semantic_intent = classify_lookup_intent(effective_query, semantic_resolution)
+                route = semantic_route_candidate(semantic_state) or dict(rule)
+                return finalize_route(
+                    route,
+                    intent=semantic_plan.intent or semantic_intent,
+                    requested_format=requested_format,
+                    requested_style=semantic_plan.requested_style or requested_style,
+                    plan=semantic_plan,
+                    semantic_state=semantic_state,
+                    context=context,
+                    resolution=semantic_resolution,
+                    resolved_query=effective_query,
+                    unsupported_reason=semantic_plan.unsupported_reason,
+                )
+            route = dict(rule)
+        else:
+            route = semantic_route_candidate(semantic_state) or dict(rule)
             semantic_plan.unsupported_reason = semantic_plan.unsupported_reason or "route_not_implemented"
-        return finalize_route(
-            route,
-            intent=semantic_plan.intent or intent,
-            requested_format=requested_format,
-            requested_style=semantic_plan.requested_style or requested_style,
-            plan=semantic_plan,
-            semantic_state=semantic_state,
-            context=context,
-            resolved_query=effective_query,
-            unsupported_reason=semantic_plan.unsupported_reason,
-        )
+            return finalize_route(
+                route,
+                intent=semantic_plan.intent or intent,
+                requested_format=requested_format,
+                requested_style=semantic_plan.requested_style or requested_style,
+                plan=semantic_plan,
+                semantic_state=semantic_state,
+                context=context,
+                resolved_query=effective_query,
+                unsupported_reason=semantic_plan.unsupported_reason,
+            )
     else:
         route = dict(rule)
 
@@ -734,6 +750,25 @@ def semantic_route_candidate(state: dict[str, Any]) -> dict[str, Any] | None:
     }
 
 
+def unresolved_basic_lookup_route(route: dict[str, Any]) -> dict[str, Any]:
+    if route.get("mode") != "basic_lookup":
+        return route
+    safe_route = dict(route)
+    safe_route["mode"] = "analysis"
+    safe_route["confidence"] = min(float(safe_route.get("confidence") or 0.0), 0.5)
+    safe_route["signals"] = [*list(safe_route.get("signals") or []), "guard:unresolved_basic_lookup"]
+    safe_route["reason"] = "정답형 조회로 확정할 수 있는 DB 엔티티가 없어 future-route 상태로 전환했습니다."
+    safe_route["unsupported_reason"] = "route_not_implemented"
+    plan_data = safe_route.get("answer_plan")
+    if isinstance(plan_data, dict):
+        safe_plan = dict(plan_data)
+        safe_plan["route"] = "analysis"
+        safe_plan["intent"] = safe_plan.get("intent") or safe_route.get("intent")
+        safe_plan["unsupported_reason"] = "route_not_implemented"
+        safe_route["answer_plan"] = safe_plan
+    return safe_route
+
+
 def requested_format_for_query(query: str) -> str:
     normalized = normalize_alias(query)
     if any(term in normalized for term in TABLE_FORMAT_TERMS):
@@ -789,16 +824,6 @@ def resolve_qa_target(db_path: Path, query: str, *, language: str = DEFAULT_LANG
         scored.sort(key=lambda item: (item[0], item[1]), reverse=True)
         return dict(scored[0][2])
 
-    for content_type in preferred_content_types(query):
-        hits = search_project_amber_v2(
-            db_path,
-            strip_query_hints(query),
-            language=language,
-            content_type=content_type,
-            limit=1,
-        )
-        if hits:
-            return localization_for_canonical(db_path, str(hits[0]["canonical_id"]), language=language)
     return None
 
 
@@ -825,41 +850,11 @@ def title_candidates(db_path: Path, *, language: str) -> list[dict[str, Any]]:
     return rows
 
 
-def localization_for_canonical(db_path: Path, canonical_id: str, *, language: str) -> dict[str, Any] | None:
-    conn = sqlite3.connect(str(db_path))
-    conn.row_factory = sqlite3.Row
-    row = conn.execute(
-        """
-        SELECT l.canonical_id, l.language, l.title, l.source_url, l.raw_ref,
-               i.content_type, i.item_id, i.rank, i.route
-        FROM localizations l
-        JOIN items i ON i.canonical_id = l.canonical_id
-        WHERE l.canonical_id = ? AND l.language = ?
-        """,
-        (canonical_id, language),
-    ).fetchone()
-    conn.close()
-    return dict(row) if row else None
-
-
 def strip_query_hints(query: str) -> str:
     stripped = str(query)
     for hint in sorted(QUERY_HINTS, key=len, reverse=True):
         stripped = stripped.replace(hint, " ")
     return clean_text(stripped)
-
-
-def preferred_content_types(query: str) -> list[str]:
-    normalized = normalize_alias(query)
-    if "성유물" in normalized:
-        return ["reliquary", "weapon", "avatar"]
-    if "무기" in normalized:
-        return ["weapon", "reliquary", "avatar"]
-    if "캐릭터" in normalized:
-        return ["avatar", "weapon", "reliquary"]
-    if "효과" in normalized:
-        return ["reliquary", "weapon", "avatar"]
-    return ["avatar", "weapon", "reliquary"]
 
 
 def content_type_hint_score(query: str, content_type: str) -> int:
@@ -1114,7 +1109,7 @@ def draft_reliquary_answer(facts: dict[str, Any], *, requested_format: str) -> s
 
     paragraphs = [f"{with_topic_particle(facts['name'])} 성유물 세트입니다."]
     for effect in facts.get("effects") or []:
-        paragraphs.append(f"{format_effect_label(effect)} 효과는 {effect['text']}입니다.")
+        paragraphs.append(complete_korean_sentence(f"{format_effect_label(effect)} 효과는", str(effect["text"])))
     piece_names = [piece["name"] for piece in facts.get("pieces") or [] if piece.get("name")]
     if piece_names:
         paragraphs.append(f"구성 부위는 {', '.join(piece_names)}입니다.")
@@ -1164,7 +1159,7 @@ def draft_weapon_answer(facts: dict[str, Any], *, requested_format: str, request
 
     paragraphs = [f"{with_topic_particle(facts['name'])} {facts.get('rank')}성 {facts.get('weapon_type')}입니다."]
     if facts.get("description"):
-        paragraphs.append(f"설명은 {facts['description']}입니다.")
+        paragraphs.append(complete_korean_sentence("설명은", str(facts["description"])))
     if facts.get("special_prop"):
         paragraphs.append(f"보조 속성은 {facts['special_prop']}입니다.")
     for affix in facts.get("affixes") or []:
@@ -1214,7 +1209,7 @@ def draft_character_answer(facts: dict[str, Any], *, requested_format: str, requ
     paragraphs = [first]
     details = []
     if facts.get("weapon_type"):
-        details.append(f"무기는 {facts['weapon_type']}을 사용합니다")
+        details.append(f"무기는 {with_object_particle(facts['weapon_type'])} 사용합니다")
     if facts.get("constellation"):
         details.append(f"운명의 자리는 {facts['constellation']}입니다")
     if facts.get("birthday"):
@@ -1229,7 +1224,7 @@ def draft_character_answer(facts: dict[str, Any], *, requested_format: str, requ
     if facts.get("title"):
         paragraphs.append(f"칭호는 {facts['title']}입니다.")
     if facts.get("detail"):
-        paragraphs.append(f"소개문에는 {facts['detail']}라고 적혀 있습니다.")
+        paragraphs.append(f"소개문에는 {with_quote_particle(facts['detail'])} 적혀 있습니다.")
     if facts.get("cv"):
         parts = [f"{lang}: {name}" for lang, name in sorted(facts["cv"].items()) if name]
         if parts:
@@ -1321,12 +1316,52 @@ def with_topic_particle(value: str) -> str:
     text = str(value or "").strip()
     if not text:
         return text
+    return append_korean_particle(text, "은", "는")
+
+
+def with_object_particle(value: str) -> str:
+    text = str(value or "").strip()
+    if not text:
+        return text
+    return append_korean_particle(text, "을", "를")
+
+
+def with_quote_particle(value: str) -> str:
+    text = str(value or "").strip()
+    if not text:
+        return text
+    if text.endswith("다"):
+        return text[:-1] + "다고"
+    return append_korean_particle(text, "이라고", "라고")
+
+
+def append_korean_particle(text: str, consonant_particle: str, vowel_particle: str) -> str:
     last = text[-1]
-    code = ord(last)
+    return text + (consonant_particle if has_korean_final_consonant(last) else vowel_particle)
+
+
+def has_korean_final_consonant(value: str) -> bool:
+    if not value:
+        return False
+    code = ord(value[-1])
     if 0xAC00 <= code <= 0xD7A3:
-        has_final = (code - 0xAC00) % 28 != 0
-        return text + ("은" if has_final else "는")
-    return text + "는"
+        return (code - 0xAC00) % 28 != 0
+    return False
+
+
+def complete_korean_sentence(prefix: str, text: str) -> str:
+    clause = clean_text(text)
+    if not clause:
+        return prefix.strip()
+    if clause.endswith((".", "!", "?")):
+        return f"{prefix} {clause}"
+    if looks_like_complete_korean_sentence(clause):
+        return f"{prefix} {clause}."
+    return f"{prefix} {clause}입니다."
+
+
+def looks_like_complete_korean_sentence(text: str) -> bool:
+    return text.endswith(("다", "요", "함", "음"))
 
 
 def validate_answer(

@@ -12,8 +12,8 @@ ROOT = Path(__file__).resolve().parents[1]
 def test_answer_evaluation_set_loads() -> None:
     evaluation_set = load_answer_evaluation_set(ROOT / "config" / "answer_evaluation_set.json")
 
-    assert evaluation_set["version"] == "0.6.2"
-    assert len(evaluation_set["cases"]) >= 24
+    assert evaluation_set["version"] == "0.6.3"
+    assert len(evaluation_set["cases"]) >= 37
     assert {
         "reliquary_effect_lookup",
         "weapon_basic_info",

@@ -1,6 +1,6 @@
 {
-  "version": "0.6.2",
-  "description": "Regression set for AnswerPlan route hardening, requested_style handling, conversation follow-ups, semantic routing fallback, and no-LLM deterministic QA.",
+  "version": "0.6.3",
+  "description": "Regression set for AnswerPlan route hardening, exact lookup false-positive guards, Korean formatting, requested_style handling, conversation follow-ups, semantic routing fallback, and no-LLM deterministic QA.",
   "cases": [
     {
       "id": "small_talk_greeting",
@@ -22,7 +22,7 @@
       "expected_canonical_id": "project_amber:reliquary:15020",
       "expected_item_id": "15020",
       "required_fragments": ["절연의 기치", "원소 충전 효율+20%", "최대 75%", "성유물 반환의 신비 획득"],
-      "forbidden_fragments": ["추천", "티어", "추측"]
+      "forbidden_fragments": ["추천", "티어", "추측", "증가할 수 있다입니다"]
     },
     {
       "id": "reliquary_gladiator_effect",
@@ -89,7 +89,7 @@
       "expected_item_id": "11509",
       "expected_requested_style": "default",
       "required_fragments": ["안개를 가르는 회광", "5성 한손검", "치명타 피해", "무절(霧切) 어검", "R1:"],
-      "forbidden_fragments": ["추천", "티어", "추측", "R5:"]
+      "forbidden_fragments": ["추천", "티어", "추측", "과거 때문이다입니다", "R5:"]
     },
     {
       "id": "weapon_mistsplitter_detail_refinements",
@@ -172,7 +172,7 @@
       "expected_canonical_id": "project_amber:avatar:10000089",
       "expected_item_id": "10000089",
       "required_fragments": ["푸리나는 폰타인 출신의 5성 물 원소 캐릭터입니다.", "한손검", "10월 13일", "코레고스자리"],
-      "forbidden_fragments": ["추천", "티어", "추측", "C1"]
+      "forbidden_fragments": ["추천", "티어", "추측", "주인공라고", "C1"]
     },
     {
       "id": "character_furina_brief_summary_phrase",
@@ -217,7 +217,7 @@
       "expected_canonical_id": "project_amber:avatar:10000073",
       "expected_item_id": "10000073",
       "required_fragments": ["나히다는 수메르 출신의 5성 풀 원소 캐릭터입니다.", "법구", "10월 27일", "지혜의 주인자리"],
-      "forbidden_fragments": ["추천", "티어", "추측", "C1"]
+      "forbidden_fragments": ["추천", "티어", "추측", "법구을", "있다라고", "C1"]
     },
     {
       "id": "character_venti_basic",
@@ -286,6 +286,18 @@
       "forbidden_fragments": ["추천", "티어", "추측"]
     },
     {
+      "id": "unsupported_phanes_plain_lookup",
+      "query": "파네스 알려줘",
+      "expected_route": "analysis",
+      "expected_intent": "unsupported",
+      "expected_content_type": null,
+      "expected_canonical_id": null,
+      "expected_item_id": null,
+      "expected_unsupported_reason": "route_not_implemented",
+      "required_fragments": ["지원하는 정답형 QA 대상을 찾지 못했습니다"],
+      "forbidden_fragments": ["성유물 세트입니다", "5성 캐릭터입니다", "5성 한손검입니다"]
+    },
+    {
       "id": "unsupported_phanes_relation",
       "query": "파네스와 천리 관계 분석해줘",
       "expected_route": "analysis",
@@ -343,6 +355,30 @@
       "expected_item_id": null,
       "required_fragments": ["지원하는 정답형 QA 대상을 찾지 못했습니다"],
       "forbidden_fragments": ["성유물 세트입니다", "5성 캐릭터입니다", "5성 한손검입니다"]
+    },
+    {
+      "id": "unsupported_loom_plain_lookup",
+      "query": "운명의 베틀 알려줘",
+      "expected_route": "analysis",
+      "expected_intent": "unsupported",
+      "expected_content_type": null,
+      "expected_canonical_id": null,
+      "expected_item_id": null,
+      "expected_unsupported_reason": "route_not_implemented",
+      "required_fragments": ["지원하는 정답형 QA 대상을 찾지 못했습니다"],
+      "forbidden_fragments": ["여행자", "5성 바람 원소 캐릭터입니다", "성유물 세트입니다", "5성 한손검입니다"]
+    },
+    {
+      "id": "unsupported_nibelung_plain_lookup",
+      "query": "니벨룽겐 알려줘",
+      "expected_route": "analysis",
+      "expected_intent": "unsupported",
+      "expected_content_type": null,
+      "expected_canonical_id": null,
+      "expected_item_id": null,
+      "expected_unsupported_reason": "route_not_implemented",
+      "required_fragments": ["지원하는 정답형 QA 대상을 찾지 못했습니다"],
+      "forbidden_fragments": ["느비예트", "레비아탄자리", "법구를 사용합니다", "5성 물 원소 캐릭터입니다"]
     },
     {
       "id": "unsupported_loom_lore",

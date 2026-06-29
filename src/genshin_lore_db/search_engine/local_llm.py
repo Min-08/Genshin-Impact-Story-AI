@@ -21,7 +21,7 @@ def ensure_local_llm_ready(
     model: str = DEFAULT_OLLAMA_MODEL,
     base_url: str = DEFAULT_OLLAMA_URL,
     auto_start: bool = True,
-    startup_timeout: float = 8.0,
+    startup_timeout: float = 15.0,
     request_timeout: float = 2.0,
 ) -> dict[str, Any]:
     status = {
@@ -31,7 +31,10 @@ def ensure_local_llm_ready(
         "model_available": False,
         "auto_start_attempted": False,
         "auto_started": False,
+        "app_start_attempted": False,
+        "app_started": False,
         "ollama_path": None,
+        "ollama_app_path": None,
         "model": model,
         "base_url": base_url,
         "message": "",
@@ -58,6 +61,18 @@ def ensure_local_llm_ready(
                 timeout=startup_timeout,
                 request_timeout=request_timeout,
             )
+        if not status["server_reachable"]:
+            ollama_app_path = find_ollama_app_executable()
+            status["ollama_app_path"] = ollama_app_path
+            if ollama_app_path:
+                status["app_start_attempted"] = True
+                if start_ollama_app(ollama_app_path):
+                    status["app_started"] = True
+                    status["server_reachable"] = wait_for_ollama(
+                        base_url=base_url,
+                        timeout=startup_timeout,
+                        request_timeout=request_timeout,
+                    )
     else:
         status["ollama_path"] = find_ollama_executable()
 
@@ -98,6 +113,17 @@ def find_ollama_executable() -> str | None:
     candidates = [
         Path.home() / "AppData" / "Local" / "Programs" / "Ollama" / "ollama.exe",
         Path("C:/Program Files/Ollama/ollama.exe"),
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            return str(candidate)
+    return None
+
+
+def find_ollama_app_executable() -> str | None:
+    candidates = [
+        Path.home() / "AppData" / "Local" / "Programs" / "Ollama" / "ollama app.exe",
+        Path("C:/Program Files/Ollama/ollama app.exe"),
     ]
     for candidate in candidates:
         if candidate.exists():
@@ -151,6 +177,22 @@ def start_ollama_server(ollama_path: str) -> bool:
             [ollama_path, "serve"],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
+            stdin=subprocess.DEVNULL,
+            creationflags=creationflags,
+        )
+    except OSError:
+        return False
+    return True
+
+
+def start_ollama_app(ollama_app_path: str) -> bool:
+    creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+    try:
+        subprocess.Popen(
+            [ollama_app_path],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            stdin=subprocess.DEVNULL,
             creationflags=creationflags,
         )
     except OSError:

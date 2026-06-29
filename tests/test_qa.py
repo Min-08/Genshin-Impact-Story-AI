@@ -93,6 +93,65 @@ def test_weapon_answer_default_uses_r1_only_and_detail_includes_all_refinements(
     assert "R5: 피해 보너스 24%" in detail
 
 
+def test_draft_answers_avoid_korean_sentence_and_particle_regressions() -> None:
+    reliquary_facts = build_reliquary_facts(
+        {
+            "id": 15020,
+            "name": "절연의 기치",
+            "affixList": {"2150201": "최대 75%까지 증가할 수 있다"},
+        },
+        source=SOURCE,
+    )
+    reliquary_answer = draft_answer_from_facts(reliquary_facts)
+    assert "증가할 수 있다입니다" not in reliquary_answer
+    assert "증가할 수 있다." in reliquary_answer
+
+    weapon_facts = build_weapon_facts(
+        {
+            "id": 14501,
+            "name": "테스트 법구",
+            "rank": 5,
+            "type": "법구",
+            "description": "이름이 이렇게 붙은 것은 과거 때문이다",
+        },
+        source=SOURCE,
+    )
+    weapon_answer = draft_answer_from_facts(weapon_facts)
+    assert "과거 때문이다입니다" not in weapon_answer
+    assert "과거 때문이다." in weapon_answer
+
+    character_facts = build_character_facts(
+        {
+            "id": 10000089,
+            "name": "푸리나",
+            "rank": 5,
+            "element": "Water",
+            "weaponType": "WEAPON_CATALYST",
+            "fetter": {"detail": "심판 무대 위의 주인공"},
+        },
+        source=SOURCE,
+    )
+    character_answer = draft_answer_from_facts(character_facts)
+    assert "법구을" not in character_answer
+    assert "법구를 사용합니다" in character_answer
+    assert "주인공라고" not in character_answer
+    assert "주인공이라고" in character_answer
+
+    sentence_detail_facts = build_character_facts(
+        {
+            "id": 10000073,
+            "name": "나히다",
+            "rank": 5,
+            "weaponType": "WEAPON_CATALYST",
+            "fetter": {"detail": "꿈속에서만 세상을 자유롭게 바라볼 수 있다"},
+        },
+        source=SOURCE,
+    )
+    sentence_detail_answer = draft_answer_from_facts(sentence_detail_facts)
+    assert "있다라고" not in sentence_detail_answer
+    assert "있다고 적혀 있습니다" in sentence_detail_answer
+
+
 def test_character_facts_extract_basic_profile() -> None:
     facts = build_character_facts(
         {
@@ -302,6 +361,54 @@ def test_route_answer_query_exact_character_defaults_to_basic_lookup() -> None:
 
     assert route["mode"] == "basic_lookup"
     assert route["intent"] == "character_basic_info"
+
+
+def test_lore_terms_do_not_promote_to_basic_lookup_entities() -> None:
+    cases = [
+        ("운명의 베틀 알려줘", "여행자"),
+        ("니벨룽겐 알려줘", "느비예트"),
+    ]
+
+    for query, forbidden_name in cases:
+        result = answer_question(".", query, use_llm=False)
+
+        assert result["intent"] == "unsupported"
+        assert result["canonical_id"] is None
+        assert result["content_type"] is None
+        assert result["route"]["mode"] != "basic_lookup"
+        assert result["route"]["answer_plan"]["route"] != "basic_lookup"
+        assert forbidden_name not in result["final_answer"]
+
+
+def test_llm_basic_lookup_without_db_resolution_is_not_authoritative(monkeypatch) -> None:
+    def fake_semantic_parse(*_args, **_kwargs):
+        return {
+            "ok": True,
+            "parse": {
+                "route": "basic_lookup",
+                "intent": "character_basic_info",
+                "entities": [{"surface": "파네스", "content_type_hint": "avatar", "confidence": 0.9}],
+                "requested_style": "default",
+                "confidence": 0.9,
+            },
+        }
+
+    monkeypatch.setattr(
+        "genshin_lore_db.search_engine.qa.parse_query_semantics_with_ollama",
+        fake_semantic_parse,
+    )
+
+    route = route_answer_query(".", "파네스 알려줘", use_llm=True)
+    assert route["mode"] == "analysis"
+    assert route["answer_plan"]["route"] == "analysis"
+    assert route["unsupported_reason"] == "route_not_implemented"
+
+    result = answer_question(".", "파네스 알려줘", use_llm=True)
+    assert result["intent"] == "unsupported"
+    assert result["canonical_id"] is None
+    assert result["content_type"] is None
+    assert result["route"]["mode"] == "analysis"
+    assert result["answer_plan"]["route"] == "analysis"
 
 
 def test_generic_category_query_requires_specific_entity() -> None:

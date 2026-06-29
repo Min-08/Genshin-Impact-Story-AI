@@ -86,6 +86,29 @@ def test_ensure_local_llm_ready_auto_starts_when_possible(monkeypatch) -> None:
     assert calls == ["start"]
 
 
+def test_ensure_local_llm_ready_starts_windows_app_when_serve_does_not_become_ready(monkeypatch) -> None:
+    calls: list[str] = []
+
+    monkeypatch.setattr("genshin_lore_db.search_engine.local_llm.ollama_api_reachable", lambda *_args, **_kwargs: False)
+    monkeypatch.setattr("genshin_lore_db.search_engine.local_llm.find_ollama_executable", lambda: "ollama")
+    monkeypatch.setattr("genshin_lore_db.search_engine.local_llm.find_ollama_app_executable", lambda: "ollama app.exe")
+    monkeypatch.setattr("genshin_lore_db.search_engine.local_llm.start_ollama_server", lambda _path: calls.append("serve") or True)
+    monkeypatch.setattr("genshin_lore_db.search_engine.local_llm.start_ollama_app", lambda _path: calls.append("app") or True)
+
+    wait_results = iter([False, True])
+    monkeypatch.setattr("genshin_lore_db.search_engine.local_llm.wait_for_ollama", lambda *_args, **_kwargs: next(wait_results))
+    monkeypatch.setattr("genshin_lore_db.search_engine.local_llm.ollama_model_available", lambda *_args, **_kwargs: True)
+
+    status = ensure_local_llm_ready(model=DEFAULT_OLLAMA_MODEL, auto_start=True)
+
+    assert status["available"] is True
+    assert status["status"] == "available"
+    assert status["auto_start_attempted"] is True
+    assert status["app_start_attempted"] is True
+    assert status["app_started"] is True
+    assert calls == ["serve", "app"]
+
+
 def test_ensure_local_llm_ready_reports_missing_executable(monkeypatch) -> None:
     monkeypatch.setattr("genshin_lore_db.search_engine.local_llm.ollama_api_reachable", lambda *_args, **_kwargs: False)
     monkeypatch.setattr("genshin_lore_db.search_engine.local_llm.find_ollama_executable", lambda: None)

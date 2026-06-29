@@ -240,14 +240,14 @@ function TimelineRow({ active, text, width }) {
 
 function SourcesPreview() {
   const sources = [
-    ["Demo Source 01", "Celestia 운영 기록 · 관리 프로토콜"],
-    ["Demo Source 02", "하늘과 땅의 권능 질서 제3권"],
-    ["Demo Source 03", "Focalors 재판 기록 원본"],
+    ["Source 01", "Celestia 운영 기록 · 관리 프로토콜"],
+    ["Source 02", "하늘과 땅의 권능 질서 제3권"],
+    ["Source 03", "Focalors 재판 기록 원본"],
   ];
 
   return (
     <section className="source-preview">
-      <h2>검색된 데모 출처 (목업 3)</h2>
+      <h2>검색된 주요 출처 (3)</h2>
       <div className="source-accordion">
         {sources.map(([label, title]) => (
           <article className="evidence-row source-preview-row" key={label}>
@@ -326,7 +326,7 @@ function SearchScreen() {
       </div>
 
       <div className="result-toolbar">
-        <span>데모 검색 결과 24개</span>
+        <span>검색 결과 24개</span>
         <div>
           <button className="view-toggle is-active">
             <Icon name="grid" />
@@ -405,7 +405,7 @@ function ReferenceCards() {
   return (
     <section className="reference-section">
       <div className="section-title-row section-title-row--left">
-        <h2>데모 출처 (목업 4)</h2>
+        <h2>출처 (4)</h2>
         <Icon name="info" />
       </div>
       <div className="reference-grid">
@@ -429,10 +429,10 @@ function ReferenceCards() {
 
 function EvidenceRows({ compact = false, expanded = false }) {
   const rows = [
-    ["Demo Evidence 01", "선죄와 하늘 기록 문헌 구조"],
-    ["Demo Evidence 02", "티바트 원소 흐름과의 연대 기록"],
-    ["Demo Evidence 03", "기이함 주기는 존재 권리 정황"],
-    ["Demo Evidence 04", "Focalors 자료 기록"],
+    ["Evidence 01", "선죄와 하늘 기록 문헌 구조"],
+    ["Evidence 02", "티바트 원소 흐름과의 연대 기록"],
+    ["Evidence 03", "기이함 주기는 존재 권리 정황"],
+    ["Evidence 04", "Focalors 자료 기록"],
   ];
   const visibleRows = compact ? rows.slice(0, 3) : rows;
 
@@ -440,7 +440,7 @@ function EvidenceRows({ compact = false, expanded = false }) {
     <section className={`evidence-section ${compact ? "evidence-section--compact" : ""}`}>
       {expanded ? (
         <div className="section-title-row section-title-row--left">
-          <h2>데모 출처 (목업 4)</h2>
+          <h2>출처 (4)</h2>
           <Icon name="info" />
         </div>
       ) : null}
@@ -513,7 +513,7 @@ function SearchResults() {
           <strong>{title}</strong>
           <p>{quote}</p>
           <footer>
-            <span>데모 {source}</span>
+            <span>{source}</span>
             <span>{version}</span>
           </footer>
         </article>
