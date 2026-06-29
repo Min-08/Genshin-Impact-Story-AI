@@ -11,7 +11,7 @@ v0.6.2~v0.6.4 기준으로 이 문서의 핵심 문제는 대부분 해결됐다
 - `아야카`, `아야카에 대해서 알려줘` 같은 exact entity 질의는 basic_lookup으로 보정된다.
 - `안녕`은 chitchat guard로 처리되어 캐릭터 기본정보로 승격되지 않는다.
 - route metadata는 AnswerPlan 기반 실행 계획으로 정리됐다.
-- `추천`, `티어`, `세팅`, `나선비경`, `공략`은 unsupported hard guard로 처리된다.
+- `추천`, `티어`, `세팅`, `파티`, `조합`, `메타`, `딜사이클`, `나선비경`, `공략`, `육성법`, `성능`은 unsupported hard guard로 처리된다.
 
 후속:
 - router.py 단독 결과와 answer layer의 보정 결과를 별도 trace에서 비교하는 개발자용 diagnostics.

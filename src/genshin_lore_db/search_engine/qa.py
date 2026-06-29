@@ -49,20 +49,29 @@ UNSUPPORTED_ANSWER_TERMS = {
     "추천",
     "티어",
     "세팅",
+    "파티",
+    "조합",
+    "메타",
+    "딜사이클",
     "나선비경",
     "공략",
+    "육성법",
+    "성능",
 }
 
 STORY_SUMMARY_TERMS = {"스토리", "줄거리", "마신임무", "임무", "퀘스트", "전설임무", "내용"}
-BRIEF_STYLE_TERMS = {"요약", "간단", "짧게", "핵심만"}
-DETAIL_STYLE_TERMS = {"자세히", "전체", "전부", "R1", "R2", "R3", "R4", "R5", "r1", "r2", "r3", "r4", "r5", "제련별", "수치"}
+BRIEF_STYLE_TERMS = {"요약", "간단", "간단히", "짧게", "핵심만"}
+DETAIL_STYLE_TERMS = {"자세히", "전체", "전부", "R1", "R2", "R3", "R4", "R5", "r1", "r2", "r3", "r4", "r5", "제련", "제련별", "수치"}
 RAW_STYLE_TERMS = {"원문", "raw", "RAW", "그대로"}
 EVIDENCE_STYLE_TERMS = {"근거", "출처", "source", "evidence"}
+SOURCE_READER_TERMS = set(EVIDENCE_STYLE_TERMS) | set(RAW_STYLE_TERMS)
 GENERIC_LOOKUP_CATEGORY_TERMS = {"성유물", "무기", "캐릭터"}
 LOW_INFORMATION_REMAINDERS = {"", "에", "에대해", "에대해서", "의", "은", "는", "을", "를", "가", "이"}
 ASCENSION_EFFECT_TERMS = {"돌파효과", "돌파 효과"}
 ASCENSION_BONUS_TERMS = {"돌파보너스", "돌파 보너스"}
-INTENT_ONLY_FOLLOWUP_TERMS = set(CONSTELLATION_TERMS) | set(TALENT_TERMS) | {"C1", "C2", "C3", "C4", "C5", "C6", "c1", "c2", "c3", "c4", "c5", "c6"}
+INTENT_ONLY_FOLLOWUP_TERMS = set(CONSTELLATION_TERMS) | set(TALENT_TERMS) | {"제련", "C1", "C2", "C3", "C4", "C5", "C6", "c1", "c2", "c3", "c4", "c5", "c6"}
+FOLLOWUP_FILLER_TERMS = {"더", "좀", "부터", "까지", "보여줘", "알려줘", "해줘", "효과"}
+FOLLOWUP_SUFFIXES = ("으로", "로", "도", "은", "는", "이", "가", "을", "를", "좀")
 
 ELEMENT_LABELS = {
     "Fire": "불",
@@ -137,7 +146,7 @@ def answer_question(
     )
     if route.get("mode") == "chitchat":
         return small_talk_answer(query, search_db, route=route)
-    if route.get("mode") == "source_reader" or route.get("requested_style") == "evidence":
+    if route.get("mode") == "source_reader":
         return evidence_answer(query, search_db, route=route, conversation_state=conversation_state)
     if route.get("mode") != "basic_lookup":
         return unsupported_answer(query, search_db, route=route)
@@ -165,6 +174,7 @@ def answer_question(
     final_answer = draft_answer
 
     if use_llm:
+        llm_state["validation"] = validation
         llm_result = rewrite_answer_with_ollama(facts=facts, draft_answer=draft_answer, model=model)
         llm_state.update(
             {
@@ -252,7 +262,7 @@ def route_answer_query(
             "mode": "unsupported",
             "confidence": 0.96,
             "signals": ["guard:unsupported_strategy"],
-            "reason": "추천, 티어, 세팅, 나선비경, 공략 요청은 현재 공식 DB 정답형 조회 범위가 아닙니다.",
+            "reason": "추천, 티어, 세팅, 파티, 조합, 메타, 딜사이클, 나선비경, 공략, 육성법, 성능 요청은 현재 공식 DB 정답형 조회 범위가 아닙니다.",
         }
         plan = AnswerPlan(
             route="unsupported",
@@ -274,21 +284,33 @@ def route_answer_query(
             context=context,
         )
 
+    if is_context_only_source_followup(query) and context.get("route") != "source_reader":
+        return clarification_route(
+            reason="clarification_required_context",
+            query=effective_query,
+            requested_format=requested_format,
+            requested_style=requested_style,
+            context=context,
+            model=model,
+        )
+
     if context.get("route") == "source_reader":
+        source_style = str(context.get("requested_style") or "evidence")
         route = {
             "mode": "source_reader",
             "confidence": 0.88,
-            "signals": ["context:last_answer", "style:evidence"],
+            "signals": ["context:last_answer", f"style:{source_style}"],
             "reason": "직전 답변의 출처나 근거를 요청한 후속 질문으로 분류했습니다.",
         }
         plan = AnswerPlan(
             route="source_reader",
             intent="show_evidence",
-            requested_style="evidence",
+            requested_style=source_style,
             detail_level="medium",
             context_reference="last_answer",
             context_used=True,
             needs_evidence=True,
+            needs_raw_source=source_style == "raw",
             confidence=0.88,
             parser="deterministic",
         )
@@ -296,7 +318,7 @@ def route_answer_query(
             route,
             intent="show_evidence",
             requested_format=requested_format,
-            requested_style="evidence",
+            requested_style=source_style,
             plan=plan,
             semantic_state=semantic_parse_state("", use_llm=False, model=model),
             context=context,
@@ -531,6 +553,8 @@ def clarification_route(
 def clarification_reason_text(reason: str) -> str:
     if reason == "ambiguous_avatar_ascension":
         return "캐릭터 돌파효과 표현이 별자리, 특성, 돌파 보너스 중 무엇을 뜻하는지 모호합니다."
+    if reason == "clarification_required_context":
+        return "근거나 원문을 표시하려면 먼저 출처가 있는 답변이 필요합니다."
     return "정답형 조회에는 구체적인 성유물, 무기, 캐릭터 이름이 필요합니다."
 
 
@@ -550,7 +574,9 @@ def is_generic_category_lookup(query: str) -> bool:
 
 def is_intent_only_lookup(query: str) -> bool:
     remainder = normalize_alias(strip_query_hints(query))
-    remainder = remainder.replace("보여줘", "").replace("알려줘", "").replace("까지", "")
+    for filler in FOLLOWUP_FILLER_TERMS:
+        remainder = remainder.replace(normalize_alias(filler), "")
+    remainder = strip_followup_suffixes(remainder)
     if is_low_information_remainder(remainder):
         return False
     intent_terms = {normalize_alias(term) for term in INTENT_ONLY_FOLLOWUP_TERMS if normalize_alias(term)}
@@ -573,6 +599,29 @@ def is_low_information_remainder(value: str) -> bool:
     if compact in LOW_INFORMATION_REMAINDERS:
         return True
     return len(compact) <= 1
+
+
+def followup_remainder(query: str, terms: set[str]) -> str:
+    remainder = normalize_alias(query)
+    for term in sorted({*terms, *FOLLOWUP_FILLER_TERMS}, key=len, reverse=True):
+        normalized_term = normalize_alias(term)
+        if normalized_term:
+            remainder = remainder.replace(normalized_term, "")
+    return strip_followup_suffixes(remainder)
+
+
+def strip_followup_suffixes(value: str) -> str:
+    text = normalize_alias(value).strip(" \t\r\n.!?？")
+    changed = True
+    while changed:
+        changed = False
+        for suffix in FOLLOWUP_SUFFIXES:
+            normalized_suffix = normalize_alias(suffix)
+            if normalized_suffix and text.endswith(normalized_suffix) and len(text) > len(normalized_suffix):
+                text = text[: -len(normalized_suffix)].strip(" \t\r\n.!?？")
+                changed = True
+                break
+    return text
 
 
 def finalize_route(
@@ -620,19 +669,22 @@ def resolve_conversation_context(query: str, state: ConversationState | None) ->
     active_name = clean_text(str(active.get("name") or ""))
     normalized = normalize_alias(query)
     if not active_name:
-        if any(term in normalized for term in EVIDENCE_STYLE_TERMS) and state.last_sources:
+        if is_context_only_source_followup(query) and state.last_sources:
             return {
                 "route": "source_reader",
-                "requested_style": "evidence",
+                "requested_style": source_reader_style_for_query(query),
                 "context_reference": "last_answer",
                 "context_used": True,
             }
         return {}
-    if any(term in normalized for term in EVIDENCE_STYLE_TERMS):
+    if any(normalize_alias(term) in normalized for term in SOURCE_READER_TERMS) and (
+        is_context_only_source_followup(query) or normalize_alias(active_name) in normalized
+    ):
+        source_style = source_reader_style_for_query(query)
         return {
             "route": "source_reader",
-            "resolved_query": f"{active_name} 근거",
-            "requested_style": "evidence",
+            "resolved_query": f"{active_name} {'원문' if source_style == 'raw' else '근거'}",
+            "requested_style": source_style,
             "context_reference": "last_answer",
             "context_used": True,
         }
@@ -651,6 +703,14 @@ def resolve_conversation_context(query: str, state: ConversationState | None) ->
             "context_reference": "last_entity",
             "context_used": True,
         }
+    if looks_like_brief_followup(query):
+        return {
+            "route": "basic_lookup",
+            "resolved_query": f"{active_name} {query}",
+            "requested_style": "brief",
+            "context_reference": "last_entity",
+            "context_used": True,
+        }
     if looks_like_detail_followup(query):
         return {
             "route": "basic_lookup",
@@ -664,13 +724,13 @@ def resolve_conversation_context(query: str, state: ConversationState | None) ->
 
 def requested_style_for_query(query: str) -> str:
     normalized = normalize_alias(query)
-    if any(term in normalized for term in RAW_STYLE_TERMS):
+    if any(normalize_alias(term) in normalized for term in RAW_STYLE_TERMS):
         return "raw"
-    if any(term in normalized for term in EVIDENCE_STYLE_TERMS):
+    if any(normalize_alias(term) in normalized for term in EVIDENCE_STYLE_TERMS):
         return "evidence"
-    if any(term in normalized for term in DETAIL_STYLE_TERMS):
+    if any(normalize_alias(term) in normalized for term in DETAIL_STYLE_TERMS):
         return "detail"
-    if any(term in normalized for term in BRIEF_STYLE_TERMS) and not looks_like_story_summary(query):
+    if any(normalize_alias(term) in normalized for term in BRIEF_STYLE_TERMS) and not looks_like_story_summary(query):
         return "brief"
     return "default"
 
@@ -685,14 +745,37 @@ def detail_level_for_style(style: str) -> str:
 
 def looks_like_story_summary(query: str) -> bool:
     normalized = normalize_alias(query)
-    has_story_scope = any(term in normalized for term in STORY_SUMMARY_TERMS)
-    has_summary = any(term in normalized for term in BRIEF_STYLE_TERMS) or "알려줘" in normalized
+    has_story_scope = any(normalize_alias(term) in normalized for term in STORY_SUMMARY_TERMS)
+    has_summary = any(normalize_alias(term) in normalized for term in BRIEF_STYLE_TERMS) or "알려줘" in normalized
     return has_story_scope and has_summary
 
 
 def looks_like_detail_followup(query: str) -> bool:
     normalized = normalize_alias(query)
-    return any(term in normalized for term in DETAIL_STYLE_TERMS)
+    if not any(normalize_alias(term) in normalized for term in DETAIL_STYLE_TERMS):
+        return False
+    return is_low_information_remainder(followup_remainder(query, set(DETAIL_STYLE_TERMS) | set(QUERY_HINTS)))
+
+
+def looks_like_brief_followup(query: str) -> bool:
+    normalized = normalize_alias(query)
+    if not any(normalize_alias(term) in normalized for term in BRIEF_STYLE_TERMS):
+        return False
+    return is_low_information_remainder(followup_remainder(query, set(BRIEF_STYLE_TERMS) | set(QUERY_HINTS)))
+
+
+def is_context_only_source_followup(query: str) -> bool:
+    normalized = normalize_alias(query)
+    if not any(normalize_alias(term) in normalized for term in SOURCE_READER_TERMS):
+        return False
+    return is_low_information_remainder(followup_remainder(query, SOURCE_READER_TERMS))
+
+
+def source_reader_style_for_query(query: str) -> str:
+    normalized = normalize_alias(query)
+    if any(normalize_alias(term) in normalized for term in RAW_STYLE_TERMS):
+        return "raw"
+    return "evidence"
 
 
 def summary_intent_for_query(query: str, resolution: dict[str, Any] | None) -> str:
@@ -719,7 +802,7 @@ def entities_from_resolution(resolution: dict[str, Any] | None) -> list[dict[str
 
 def contains_unsupported_answer_term(query: str) -> bool:
     normalized = normalize_alias(query)
-    return any(term in normalized for term in UNSUPPORTED_ANSWER_TERMS)
+    return any(normalize_alias(term) in normalized for term in UNSUPPORTED_ANSWER_TERMS)
 
 
 def semantic_parse_state(query: str, *, use_llm: bool, model: str) -> dict[str, Any]:
@@ -1415,9 +1498,14 @@ def validate_answer(
     if used_forbidden:
         reasons.append("forbidden_terms:" + ",".join(used_forbidden))
 
+    wrong_type_phrases = type_phrase_violations(cleaned, facts)
+    if wrong_type_phrases:
+        reasons.extend(wrong_type_phrases)
+
     return {
         "ok": not reasons,
         "reasons": reasons,
+        "reason_codes": [reason.split(":", 1)[0] for reason in reasons],
     }
 
 
@@ -1472,7 +1560,33 @@ def required_fact_fragments(facts: dict[str, Any], *, requested_style: str = "de
         ]:
             if facts.get(key):
                 fragments.append(str(facts[key]))
+    if facts.get("sources"):
+        fragments.append(source_text(facts))
     return fragments
+
+
+def type_phrase_violations(answer: str, facts: dict[str, Any]) -> list[str]:
+    content_type = str(facts.get("content_type") or "")
+    phrase_rules = {
+        "avatar": {
+            "avatar_as_reliquary": ["성유물 세트"],
+            "avatar_as_weapon": ["한손검입니다", "양손검입니다", "장병기입니다", "활입니다", "법구입니다", "무기입니다"],
+        },
+        "weapon": {
+            "weapon_as_reliquary": ["성유물 세트"],
+            "weapon_as_avatar": ["캐릭터입니다", "원소 캐릭터"],
+        },
+        "reliquary": {
+            "reliquary_as_weapon": ["한손검입니다", "양손검입니다", "장병기입니다", "활입니다", "법구입니다", "무기입니다"],
+            "reliquary_as_avatar": ["캐릭터입니다", "원소 캐릭터"],
+        },
+    }
+    violations = []
+    for code, phrases in phrase_rules.get(content_type, {}).items():
+        for phrase in phrases:
+            if phrase in answer:
+                violations.append(f"wrong_type_phrase:{code}:{phrase}")
+    return violations
 
 
 def compact_for_presence(text: str) -> str:
@@ -1562,7 +1676,7 @@ def evidence_answer(
         "sources": sources,
         "route": route,
         "requested_format": route.get("requested_format") or requested_format_for_query(query),
-        "requested_style": "evidence",
+        "requested_style": route.get("requested_style") or "evidence",
         "answer_plan": route.get("answer_plan"),
         "semantic_parse": route.get("semantic_parse"),
     }
@@ -1599,6 +1713,14 @@ def unsupported_answer(query: str, db_path: Path, *, route: dict[str, Any] | Non
 
 def unsupported_message(route: dict[str, Any]) -> str:
     reason = str(route.get("unsupported_reason") or "")
+    if reason == "unofficial_strategy_request":
+        return (
+            "지원하는 정답형 QA 대상이 아닙니다. 현재 시스템은 공식 데이터 조회와 근거 확인만 지원하며, "
+            "플레이 조언이나 메타 평가는 답변하지 않습니다. "
+            "성유물 효과, 무기 정보, 캐릭터 기본정보처럼 공식 데이터 항목으로 물어봐 주세요."
+        )
+    if reason == "clarification_required_context":
+        return "직전 답변의 근거나 원문을 보려면 먼저 성유물, 무기, 캐릭터 공식 데이터 항목을 조회해 주세요."
     if reason == "clarification_required_entity":
         return (
             "구체적인 이름을 입력해 주세요. 예: 절연의 기치 효과, 안개를 가르는 회광 정보, "

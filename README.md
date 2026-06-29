@@ -4,7 +4,7 @@
 
 목표는 단순한 검색 챗봇이 아닙니다. Project Amber 전체 덤프와 다국어 TextMap을 정규화하고, 한중일영 공식 텍스트를 함께 탐색하면서 인물, 장소, 개념, 모티프, 번역 차이, 반례 후보를 연결하는 연구용 기반 시스템을 만드는 것입니다.
 
-현재 작업 상태는 **v0.6 기반 + QA/터미널/search v2 안정화 단계**입니다. 데이터 수집과 정규화, Project Amber v2 SQLite 검색 DB, 기본 Query Router, Evidence Pack v0.5, 정답형 QA, 로컬 Ollama Qwen3 재작성, 검색/정답 평가셋이 구축되어 있습니다. `answer`/`chat`은 Project Amber v2 기반 정답형 QA를 사용하고, `search`/`investigate`도 기본값이 v2입니다. v1 검색엔진은 `--db-version v1`로 유지합니다. 벡터 검색, 모티프 인덱스, 그래프 검색, 워크스페이스 메모리, full Source Reader 답변 통합은 아직 개발 전입니다.
+현재 작업 상태는 **v0.6.4 QA 코어 안정화 완료 단계**입니다. 데이터 수집과 정규화, Project Amber v2 SQLite 검색 DB, 기본 Query Router, Evidence Pack v0.5, 정답형 QA, 로컬 Ollama Qwen3 재작성, 검색/정답 평가셋이 구축되어 있습니다. `answer`/`chat`은 Project Amber v2 기반 정답형 QA를 사용하고, `search`/`investigate`도 기본값이 v2입니다. v1 검색엔진은 `--db-version v1`로 유지합니다. 벡터 검색, 모티프 인덱스, 그래프 검색, 워크스페이스 메모리, full Source Reader 답변 통합은 아직 개발 전입니다.
 
 ## 문서
 
@@ -34,6 +34,8 @@
 - Project Amber v2 canonical/readable/search DB 병행 생성
 - 책/성유물/무기/캐릭터/재료 deep 데이터를 `_보충 데이터`가 아니라 항목 하위 문서로 승격
 - 정답형 QA Query Understanding 안정화: generic category 오답 방지, avatar/reliquary lock, 짧은 후속 질문 문맥 상속
+- gameplay/meta 요청 hard guard: 추천, 티어, 세팅, 파티, 조합, 메타, 딜사이클, 나선비경, 공략, 육성법, 성능 요청은 공식 데이터 답변으로 승격하지 않음
+- LLM rewrite validator 강화: 새 숫자/퍼센트/이름, 필수 fragment 누락, 타입 문구 오류, 과도한 길이와 반복을 거부하고 템플릿 답변으로 fallback
 - 로컬 Ollama Qwen3 기반 정답형 QA 재작성과 fallback
 - QA 터미널 시작 시 Ollama API 확인, 가능한 경우 자동 시작, 모델 누락/서버 실패 경고 표시
 - `search` / `investigate` / `search_lore.py` 기본 Project Amber v2 검색 사용

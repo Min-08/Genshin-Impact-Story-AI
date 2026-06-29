@@ -31,7 +31,7 @@ def parse_query_semantics_with_ollama(
                     "Allowed route values: basic_lookup, summary, analysis, research, source_reader, chitchat, unsupported.",
                     "Allowed requested_format values: paragraph, bullet, table, short, long.",
                     "Allowed requested_style values: brief, default, detail, raw, evidence, analysis, research.",
-                    "Guide, tier, team-building, Spiral Abyss meta, and artifact recommendation requests must be unsupported.",
+                    "Guide, tier, setting, team-building, party, composition, meta, damage-rotation, Spiral Abyss, build-guide, performance, and artifact recommendation requests must be unsupported.",
                     "너는 질문 의미를 JSON으로만 분류한다. 답변을 생성하지 않는다.",
                     "엔티티는 사용자가 말한 표면 문자열만 넣고 새 이름을 만들지 않는다.",
                 ]

@@ -237,6 +237,7 @@ def test_validator_rejects_overlong_repeated_rewrite() -> None:
     invalid = validate_answer(draft + "\n\n" + draft, facts, draft)
     assert not invalid["ok"]
     assert "answer_too_long" in invalid["reasons"]
+    assert "repeated_draft" in invalid["reasons"]
 
 
 def test_validator_rejects_missing_required_fact_fragment() -> None:
@@ -255,6 +256,44 @@ def test_validator_rejects_missing_required_fact_fragment() -> None:
 
     assert not invalid["ok"]
     assert any(reason.startswith("missing_fact_fragments:") for reason in invalid["reasons"])
+
+
+def test_validator_rejects_changed_effect_values() -> None:
+    facts = build_reliquary_facts(
+        {
+            "id": 15020,
+            "name": "절연의 기치",
+            "affixList": {"2150200": "원소 충전 효율+20%"},
+            "suit": {},
+        },
+        source=SOURCE,
+    )
+    draft = draft_answer_from_facts(facts)
+    invalid = validate_answer(draft.replace("원소 충전 효율+20%", "원소 충전 효율+30%"), facts, draft)
+
+    assert not invalid["ok"]
+    assert any(reason.startswith("missing_fact_fragments:") for reason in invalid["reasons"])
+    assert any(reason.startswith("unexpected_numbers:") for reason in invalid["reasons"])
+
+
+def test_validator_rejects_wrong_type_phrase_even_when_required_fragments_remain() -> None:
+    facts = build_weapon_facts(
+        {
+            "id": 11509,
+            "name": "안개를 가르는 회광",
+            "rank": 5,
+            "type": "한손검",
+            "specialProp": "FIGHT_PROP_CRITICAL_HURT",
+            "affix": {"111509": {"name": "무절 어검", "upgrade": {"0": "모든 원소 피해 보너스 12%"}}},
+        },
+        source=SOURCE,
+    )
+    draft = draft_answer_from_facts(facts)
+    invalid = validate_answer(draft + "\n안개를 가르는 회광은 성유물 세트입니다.", facts, draft)
+
+    assert not invalid["ok"]
+    assert any(reason.startswith("wrong_type_phrase:weapon_as_reliquary") for reason in invalid["reasons"])
+    assert "wrong_type_phrase" in invalid["reason_codes"]
 
 
 def test_validator_requires_weapon_rank_type_phrase() -> None:
@@ -340,12 +379,80 @@ def test_route_answer_query_hard_guard_blocks_llm_basic_lookup(monkeypatch) -> N
     assert route["unsupported_reason"] == "unofficial_strategy_request"
 
 
+def test_answer_question_llm_validation_failure_falls_back_to_draft(monkeypatch) -> None:
+    def fake_rewrite(*_args, **_kwargs):
+        return {
+            "ok": True,
+            "content": "절연의 기치는 「나히다」에게 999% 보너스를 주는 성유물 세트입니다.",
+            "error": None,
+        }
+
+    monkeypatch.setattr("genshin_lore_db.search_engine.qa.rewrite_answer_with_ollama", fake_rewrite)
+
+    result = answer_question(".", "절연의 기치 효과", use_llm=True)
+
+    assert result["final_answer"] == result["draft_answer"]
+    assert result["validation"]["ok"] is True
+    assert result["llm"]["used"] is False
+    assert result["llm"]["error"]["type"] == "validation_failed"
+    assert result["llm"]["validation"]["ok"] is False
+    assert any(reason.startswith("unexpected_numbers") for reason in result["llm"]["validation"]["reasons"])
+
+
 def test_route_answer_query_blocks_artifact_recommendation_lookup() -> None:
     route = route_answer_query(".", "피슬 성유물 추천해줘", use_llm=False)
 
     assert route["mode"] == "unsupported"
     assert route["intent"] == "guide_or_meta_request"
     assert route["unsupported_reason"] == "unofficial_strategy_request"
+
+
+def test_roadmap_required_basic_lookup_queries() -> None:
+    queries = [
+        "푸리나 알려줘",
+        "푸리나 기본정보",
+        "푸리나 별자리",
+        "푸리나 특성",
+        "아야카 알려줘",
+        "아야카 별자리",
+        "안개를 가르는 회광 정보",
+        "안개를 가르는 회광 제련별 효과",
+        "절연의 기치 효과",
+        "절연의 기치 파츠 알려줘",
+    ]
+
+    for query in queries:
+        result = answer_question(".", query, use_llm=False)
+
+        assert result["route"]["mode"] == "basic_lookup", query
+        assert result["final_answer"]
+        assert result["sources"]
+        assert result["route"]
+        assert result["canonical_id"]
+        assert result["content_type"] in {"avatar", "weapon", "reliquary"}
+
+
+def test_roadmap_unsupported_strategy_queries_are_hard_blocked() -> None:
+    queries = [
+        "피슬 성유물 추천해줘",
+        "푸리나 세팅 알려줘",
+        "아야카 파티 추천",
+        "나선비경 티어 알려줘",
+        "무기 티어표 알려줘",
+        "현재 메타 알려줘",
+        "라이덴 딜사이클 알려줘",
+        "야란 육성법 알려줘",
+        "느비예트 성능 알려줘",
+    ]
+
+    for query in queries:
+        result = answer_question(".", query, use_llm=True)
+
+        assert result["route"]["mode"] == "unsupported", query
+        assert result["route"]["unsupported_reason"] == "unofficial_strategy_request"
+        assert result["llm"]["enabled"] is False
+        assert "공식 데이터 조회" in result["final_answer"]
+        assert "플레이 조언이나 메타 평가는 답변하지 않습니다" in result["final_answer"]
 
 
 def test_route_answer_query_basic_summary_phrase_is_brief_lookup() -> None:
@@ -489,6 +596,54 @@ def test_conversation_state_resolves_story_detail_and_evidence_followups() -> No
     assert evidence["route"]["context_used"] is True
     assert evidence["intent"] == "show_evidence"
     assert "project_amber" in evidence["final_answer"]
+
+
+def test_roadmap_followup_context_flows() -> None:
+    ayaka_state = ConversationState()
+    ayaka = answer_question(".", "아야카 알려줘", use_llm=False, conversation_state=ayaka_state)
+    ayaka_state.update_from_result(ayaka)
+
+    brief = answer_question(".", "짧게", use_llm=False, conversation_state=ayaka_state)
+    assert brief["route"]["mode"] == "basic_lookup"
+    assert brief["route"]["context_used"] is True
+    assert brief["requested_style"] == "brief"
+
+    talent = answer_question(".", "특성도", use_llm=False, conversation_state=ayaka_state)
+    assert talent["route"]["mode"] == "basic_lookup"
+    assert talent["route"]["context_used"] is True
+    assert talent["intent"] == "character_talent"
+    assert talent["canonical_id"] == "project_amber:avatar:10000002"
+
+    weapon_state = ConversationState()
+    weapon = answer_question(".", "안개를 가르는 회광 알려줘", use_llm=False, conversation_state=weapon_state)
+    weapon_state.update_from_result(weapon)
+    refinement = answer_question(".", "제련 효과는?", use_llm=False, conversation_state=weapon_state)
+    assert refinement["route"]["mode"] == "basic_lookup"
+    assert refinement["route"]["context_used"] is True
+    assert refinement["requested_style"] == "detail"
+    assert refinement["content_type"] == "weapon"
+
+    reliquary_state = ConversationState()
+    reliquary = answer_question(".", "절연의 기치 알려줘", use_llm=False, conversation_state=reliquary_state)
+    reliquary_state.update_from_result(reliquary)
+    detail = answer_question(".", "더 자세히", use_llm=False, conversation_state=reliquary_state)
+    assert detail["route"]["mode"] == "basic_lookup"
+    assert detail["route"]["context_used"] is True
+    assert detail["requested_style"] == "detail"
+
+    raw = answer_question(".", "원문은?", use_llm=False, conversation_state=reliquary_state)
+    assert raw["route"]["mode"] == "source_reader"
+    assert raw["requested_style"] == "raw"
+    assert raw["route"]["answer_plan"]["needs_raw_source"] is True
+
+
+def test_context_free_evidence_followup_requires_prior_answer() -> None:
+    result = answer_question(".", "근거는?", use_llm=False)
+
+    assert result["route"]["mode"] == "unsupported"
+    assert result["route"]["needs_clarification"] is True
+    assert result["route"]["unsupported_reason"] == "clarification_required_context"
+    assert "직전 답변" in result["final_answer"]
 
 
 def test_answer_question_handles_greeting_without_lookup() -> None:

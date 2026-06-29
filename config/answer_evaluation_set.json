@@ -1,6 +1,6 @@
 {
-  "version": "0.6.3",
-  "description": "Regression set for AnswerPlan route hardening, exact lookup false-positive guards, Korean formatting, requested_style handling, conversation follow-ups, semantic routing fallback, and no-LLM deterministic QA.",
+  "version": "0.6.4",
+  "description": "Regression set for v0.6.x QA core stabilization: AnswerPlan route hardening, exact lookup false-positive guards, unsupported strategy guards, Korean formatting, requested_style handling, conversation follow-ups, validator fallback, semantic routing fallback, and no-LLM deterministic QA.",
   "cases": [
     {
       "id": "small_talk_greeting",
@@ -23,6 +23,17 @@
       "expected_item_id": "15020",
       "required_fragments": ["절연의 기치", "원소 충전 효율+20%", "최대 75%", "성유물 반환의 신비 획득"],
       "forbidden_fragments": ["추천", "티어", "추측", "증가할 수 있다입니다"]
+    },
+    {
+      "id": "reliquary_emblem_pieces",
+      "query": "절연의 기치 파츠 알려줘",
+      "expected_route": "basic_lookup",
+      "expected_intent": "reliquary_effect_lookup",
+      "expected_content_type": "reliquary",
+      "expected_canonical_id": "project_amber:reliquary:15020",
+      "expected_item_id": "15020",
+      "required_fragments": ["절연의 기치", "위엄의 날밑", "화려한 투구", "뇌운의 함"],
+      "forbidden_fragments": ["추천", "티어", "추측"]
     },
     {
       "id": "reliquary_gladiator_effect",
@@ -104,6 +115,18 @@
       "forbidden_fragments": ["추천", "티어", "추측"]
     },
     {
+      "id": "weapon_mistsplitter_refinement_phrase",
+      "query": "안개를 가르는 회광 제련별 효과",
+      "expected_route": "basic_lookup",
+      "expected_intent": "weapon_basic_info",
+      "expected_content_type": "weapon",
+      "expected_canonical_id": "project_amber:weapon:11509",
+      "expected_item_id": "11509",
+      "expected_requested_style": "detail",
+      "required_fragments": ["안개를 가르는 회광", "무절(霧切) 어검", "R1:", "R5:"],
+      "forbidden_fragments": ["추천", "티어", "추측"]
+    },
+    {
       "id": "weapon_staff_of_homa_info",
       "query": "호마의 지팡이 정보",
       "expected_route": "basic_lookup",
@@ -173,6 +196,17 @@
       "expected_item_id": "10000089",
       "required_fragments": ["푸리나는 폰타인 출신의 5성 물 원소 캐릭터입니다.", "한손검", "10월 13일", "코레고스자리"],
       "forbidden_fragments": ["추천", "티어", "추측", "주인공라고", "C1"]
+    },
+    {
+      "id": "character_furina_plain_tell_me",
+      "query": "푸리나 알려줘",
+      "expected_route": "basic_lookup",
+      "expected_intent": "character_basic_info",
+      "expected_content_type": "avatar",
+      "expected_canonical_id": "project_amber:avatar:10000089",
+      "expected_item_id": "10000089",
+      "required_fragments": ["푸리나는 폰타인 출신의 5성 물 원소 캐릭터입니다.", "한손검", "10월 13일", "코레고스자리"],
+      "forbidden_fragments": ["추천", "티어", "추측", "C1"]
     },
     {
       "id": "character_furina_brief_summary_phrase",
@@ -264,6 +298,28 @@
       "forbidden_fragments": ["추천", "티어", "추측", "C1"]
     },
     {
+      "id": "character_ayaka_tell_me",
+      "query": "아야카 알려줘",
+      "expected_route": "basic_lookup",
+      "expected_intent": "character_basic_info",
+      "expected_content_type": "avatar",
+      "expected_canonical_id": "project_amber:avatar:10000002",
+      "expected_item_id": "10000002",
+      "required_fragments": ["카미사토 아야카는 이나즈마 출신의 5성 얼음 원소 캐릭터입니다.", "한손검", "설학자리", "9월 28일"],
+      "forbidden_fragments": ["추천", "티어", "추측", "C1"]
+    },
+    {
+      "id": "character_ayaka_constellation",
+      "query": "아야카 별자리",
+      "expected_route": "basic_lookup",
+      "expected_intent": "character_constellation",
+      "expected_content_type": "avatar",
+      "expected_canonical_id": "project_amber:avatar:10000002",
+      "expected_item_id": "10000002",
+      "required_fragments": ["카미사토 아야카의 별자리 효과입니다.", "C1", "C6"],
+      "forbidden_fragments": ["추천", "티어", "추측"]
+    },
+    {
       "id": "character_furina_constellation",
       "query": "푸리나 별자리",
       "expected_route": "basic_lookup",
@@ -329,7 +385,7 @@
       "expected_item_id": null,
       "expected_plan_intent": "guide_or_meta_request",
       "expected_unsupported_reason": "unofficial_strategy_request",
-      "required_fragments": ["지원하는 정답형 QA 대상을 찾지 못했습니다"],
+      "required_fragments": ["공식 데이터 조회", "플레이 조언이나 메타 평가는 답변하지 않습니다"],
       "forbidden_fragments": ["추천 세팅", "티어", "공격력+18%"]
     },
     {
@@ -342,8 +398,99 @@
       "expected_item_id": null,
       "expected_plan_intent": "guide_or_meta_request",
       "expected_unsupported_reason": "unofficial_strategy_request",
-      "required_fragments": ["지원하는 정답형 QA 대상을 찾지 못했습니다"],
-      "forbidden_fragments": ["추천", "티어표", "5성 캐릭터입니다"]
+      "required_fragments": ["공식 데이터 조회", "플레이 조언이나 메타 평가는 답변하지 않습니다"],
+      "forbidden_fragments": ["티어표", "5성 캐릭터입니다"]
+    },
+    {
+      "id": "unsupported_furina_setting",
+      "query": "푸리나 세팅 알려줘",
+      "expected_route": "unsupported",
+      "expected_intent": "unsupported",
+      "expected_content_type": null,
+      "expected_canonical_id": null,
+      "expected_item_id": null,
+      "expected_plan_intent": "guide_or_meta_request",
+      "expected_unsupported_reason": "unofficial_strategy_request",
+      "required_fragments": ["공식 데이터 조회", "플레이 조언이나 메타 평가는 답변하지 않습니다"],
+      "forbidden_fragments": ["폰타인 출신의 5성 물 원소 캐릭터입니다", "C1"]
+    },
+    {
+      "id": "unsupported_ayaka_party",
+      "query": "아야카 파티 추천",
+      "expected_route": "unsupported",
+      "expected_intent": "unsupported",
+      "expected_content_type": null,
+      "expected_canonical_id": null,
+      "expected_item_id": null,
+      "expected_plan_intent": "guide_or_meta_request",
+      "expected_unsupported_reason": "unofficial_strategy_request",
+      "required_fragments": ["공식 데이터 조회", "플레이 조언이나 메타 평가는 답변하지 않습니다"],
+      "forbidden_fragments": ["카미사토 아야카는 이나즈마 출신", "빙결"]
+    },
+    {
+      "id": "unsupported_weapon_tier_table",
+      "query": "무기 티어표 알려줘",
+      "expected_route": "unsupported",
+      "expected_intent": "unsupported",
+      "expected_content_type": null,
+      "expected_canonical_id": null,
+      "expected_item_id": null,
+      "expected_plan_intent": "guide_or_meta_request",
+      "expected_unsupported_reason": "unofficial_strategy_request",
+      "required_fragments": ["공식 데이터 조회", "플레이 조언이나 메타 평가는 답변하지 않습니다"],
+      "forbidden_fragments": ["5성 한손검입니다", "등급표"]
+    },
+    {
+      "id": "unsupported_current_meta",
+      "query": "현재 메타 알려줘",
+      "expected_route": "unsupported",
+      "expected_intent": "unsupported",
+      "expected_content_type": null,
+      "expected_canonical_id": null,
+      "expected_item_id": null,
+      "expected_plan_intent": "guide_or_meta_request",
+      "expected_unsupported_reason": "unofficial_strategy_request",
+      "required_fragments": ["공식 데이터 조회", "플레이 조언이나 메타 평가는 답변하지 않습니다"],
+      "forbidden_fragments": ["최강", "1티어"]
+    },
+    {
+      "id": "unsupported_raiden_rotation",
+      "query": "라이덴 딜사이클 알려줘",
+      "expected_route": "unsupported",
+      "expected_intent": "unsupported",
+      "expected_content_type": null,
+      "expected_canonical_id": null,
+      "expected_item_id": null,
+      "expected_plan_intent": "guide_or_meta_request",
+      "expected_unsupported_reason": "unofficial_strategy_request",
+      "required_fragments": ["공식 데이터 조회", "플레이 조언이나 메타 평가는 답변하지 않습니다"],
+      "forbidden_fragments": ["콤보", "원소폭발 후"]
+    },
+    {
+      "id": "unsupported_yelan_build_guide",
+      "query": "야란 육성법 알려줘",
+      "expected_route": "unsupported",
+      "expected_intent": "unsupported",
+      "expected_content_type": null,
+      "expected_canonical_id": null,
+      "expected_item_id": null,
+      "expected_plan_intent": "guide_or_meta_request",
+      "expected_unsupported_reason": "unofficial_strategy_request",
+      "required_fragments": ["공식 데이터 조회", "플레이 조언이나 메타 평가는 답변하지 않습니다"],
+      "forbidden_fragments": ["우선순위", "권장"]
+    },
+    {
+      "id": "unsupported_neuvillette_performance",
+      "query": "느비예트 성능 알려줘",
+      "expected_route": "unsupported",
+      "expected_intent": "unsupported",
+      "expected_content_type": null,
+      "expected_canonical_id": null,
+      "expected_item_id": null,
+      "expected_plan_intent": "guide_or_meta_request",
+      "expected_unsupported_reason": "unofficial_strategy_request",
+      "required_fragments": ["공식 데이터 조회", "플레이 조언이나 메타 평가는 답변하지 않습니다"],
+      "forbidden_fragments": ["법구를 사용합니다", "물 원소 캐릭터입니다"]
     },
     {
       "id": "unsupported_irminsul_research",
@@ -422,6 +569,61 @@
       "forbidden_fragments": ["추천", "티어", "추측"]
     },
     {
+      "id": "conversation_ayaka_talent_followup",
+      "history": [{"user": "아야카 알려줘"}],
+      "query": "특성도",
+      "expected_route": "basic_lookup",
+      "expected_intent": "character_talent",
+      "expected_content_type": "avatar",
+      "expected_canonical_id": "project_amber:avatar:10000002",
+      "expected_item_id": "10000002",
+      "expected_context_used": true,
+      "required_fragments": ["카미사토 아야카의 특성 정보입니다.", "카미사토류·얼음꽃"],
+      "forbidden_fragments": ["추천", "티어", "추측"]
+    },
+    {
+      "id": "conversation_ayaka_brief_followup",
+      "history": [{"user": "아야카 알려줘"}],
+      "query": "짧게",
+      "expected_route": "basic_lookup",
+      "expected_intent": "character_basic_info",
+      "expected_content_type": "avatar",
+      "expected_canonical_id": "project_amber:avatar:10000002",
+      "expected_item_id": "10000002",
+      "expected_requested_style": "brief",
+      "expected_context_used": true,
+      "required_fragments": ["카미사토 아야카는 이나즈마 출신의 5성 얼음 원소 캐릭터입니다.", "출처"],
+      "forbidden_fragments": ["추천", "티어", "추측", "CV"]
+    },
+    {
+      "id": "conversation_mistsplitter_refinement_followup",
+      "history": [{"user": "안개를 가르는 회광 알려줘"}],
+      "query": "제련 효과는?",
+      "expected_route": "basic_lookup",
+      "expected_intent": "weapon_basic_info",
+      "expected_content_type": "weapon",
+      "expected_canonical_id": "project_amber:weapon:11509",
+      "expected_item_id": "11509",
+      "expected_requested_style": "detail",
+      "expected_context_used": true,
+      "required_fragments": ["안개를 가르는 회광", "R1:", "R5:"],
+      "forbidden_fragments": ["추천", "티어", "추측"]
+    },
+    {
+      "id": "conversation_emblem_detail_followup",
+      "history": [{"user": "절연의 기치 알려줘"}],
+      "query": "더 자세히",
+      "expected_route": "basic_lookup",
+      "expected_intent": "reliquary_effect_lookup",
+      "expected_content_type": "reliquary",
+      "expected_canonical_id": "project_amber:reliquary:15020",
+      "expected_item_id": "15020",
+      "expected_requested_style": "detail",
+      "expected_context_used": true,
+      "required_fragments": ["절연의 기치", "원소 충전 효율+20%", "최대 75%"],
+      "forbidden_fragments": ["추천", "티어", "추측"]
+    },
+    {
       "id": "conversation_furina_evidence_followup",
       "history": [{"user": "푸리나 알려줘"}],
       "query": "근거는?",
@@ -435,6 +637,35 @@
       "expected_context_used": true,
       "required_fragments": ["출처", "project_amber", "raw_ref"],
       "forbidden_fragments": ["지원하는 정답형 QA 대상을 찾지 못했습니다"]
+    },
+    {
+      "id": "conversation_emblem_raw_followup",
+      "history": [{"user": "절연의 기치 알려줘"}],
+      "query": "원문은?",
+      "expected_route": "source_reader",
+      "expected_intent": "show_evidence",
+      "expected_content_type": null,
+      "expected_canonical_id": null,
+      "expected_item_id": null,
+      "expected_plan_intent": "show_evidence",
+      "expected_requested_style": "raw",
+      "expected_context_used": true,
+      "required_fragments": ["출처", "project_amber", "raw_ref"],
+      "forbidden_fragments": ["지원하는 정답형 QA 대상을 찾지 못했습니다"]
+    },
+    {
+      "id": "context_free_evidence_requires_context",
+      "query": "근거는?",
+      "expected_route": "unsupported",
+      "expected_intent": "unsupported",
+      "expected_content_type": null,
+      "expected_canonical_id": null,
+      "expected_item_id": null,
+      "expected_plan_intent": "clarification_required",
+      "expected_requested_style": "evidence",
+      "expected_unsupported_reason": "clarification_required_context",
+      "required_fragments": ["직전 답변", "먼저 성유물, 무기, 캐릭터 공식 데이터 항목을 조회"],
+      "forbidden_fragments": ["project_amber", "raw_ref"]
     }
   ],
   "thresholds": {

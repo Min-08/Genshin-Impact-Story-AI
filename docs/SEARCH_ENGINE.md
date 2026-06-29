@@ -23,7 +23,7 @@ python scripts/eval_search_engine.py --db-version v1
 
 ## 정답형 QA와 로컬 Qwen3
 
-`answer`는 현재 성유물 효과, 무기 기본정보/효과, 캐릭터 기본정보를 지원합니다.
+`answer`는 현재 성유물 효과, 무기 기본정보/효과, 캐릭터 기본정보/별자리/특성을 지원합니다.
 
 ```powershell
 python scripts/lore_search_engine.py answer "절연의 기치 효과 알려줘" --no-llm --text
@@ -38,7 +38,9 @@ python scripts/setup_local_llm.py --install --model qwen3:4b-instruct
 python scripts/lore_search_engine.py answer "절연의 기치 효과 알려줘" --text
 ```
 
-정답형 QA의 사실 판단은 Project Amber v2 DB와 한국어 RAW JSON에서 수행합니다. 로컬 Qwen3는 `facts`와 `draft_answer`를 자연스러운 한국어로 다듬는 rewriter일 뿐이며, 새 숫자나 이름을 추가하면 validator가 실패 처리하고 템플릿 답변으로 되돌립니다.
+정답형 QA의 사실 판단은 Project Amber v2 DB와 한국어 RAW JSON에서 수행합니다. 로컬 Qwen3는 `facts`와 `draft_answer`를 자연스러운 한국어로 다듬는 rewriter일 뿐이며, 새 숫자, 퍼센트, 이름, 타입 문구 오류, 필수 fragment 누락이 있으면 validator가 실패 처리하고 템플릿 답변으로 되돌립니다.
+
+추천, 티어, 세팅, 파티, 조합, 메타, 딜사이클, 나선비경, 공략, 육성법, 성능처럼 gameplay/meta/strategy에 해당하는 질문은 공식 데이터 답변으로 승격하지 않고 `unsupported_reason=unofficial_strategy_request`로 차단합니다. 짧은 후속 질문은 터미널 세션의 `ConversationState` 안에서만 직전 성유물/무기/캐릭터 대상과 출처를 상속합니다.
 
 반복 테스트는 대화형 터미널을 쓰면 됩니다. 기본값은 라우팅 ON, 로컬 Qwen3 ON입니다.
 
