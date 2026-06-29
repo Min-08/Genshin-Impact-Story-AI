@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 const views = ["home", "progress", "answer", "search", "evidence"];
 
@@ -50,25 +50,32 @@ export default function App() {
     return () => window.removeEventListener("hashchange", onHashChange);
   }, []);
 
-  const screen = useMemo(() => {
-    switch (view) {
-      case "progress":
-        return <ProgressScreen />;
-      case "answer":
-        return <AnswerScreen />;
-      case "search":
-        return <SearchScreen />;
-      case "evidence":
-        return <EvidenceScreen />;
-      default:
-        return <HomeScreen />;
-    }
-  }, [view]);
-
   const go = (nextView) => {
     window.location.hash = nextView;
     setView(nextView);
   };
+
+  const handleSubmit = () => go("progress");
+  const handleStopGeneration = () => go("answer");
+
+  let screen;
+  switch (view) {
+    case "progress":
+      screen = <ProgressScreen onStop={handleStopGeneration} />;
+      break;
+    case "answer":
+      screen = <AnswerScreen onSubmit={handleSubmit} />;
+      break;
+    case "search":
+      screen = <SearchScreen onSubmit={handleSubmit} />;
+      break;
+    case "evidence":
+      screen = <EvidenceScreen onSubmit={handleSubmit} />;
+      break;
+    default:
+      screen = <HomeScreen onSubmit={handleSubmit} />;
+      break;
+  }
 
   return (
     <div className={`aurora-app aurora-app--${view}`}>
@@ -92,7 +99,7 @@ function Sidebar({ onNavigate }) {
         <span>새 연구 시작</span>
       </button>
 
-      <ResearchHistory />
+      <ResearchHistory onOpen={() => onNavigate("answer")} />
 
       <div className="profile-card">
         <div className="profile-left">
@@ -134,7 +141,7 @@ function RecentResearchHome() {
   );
 }
 
-function ResearchHistory() {
+function ResearchHistory({ onOpen }) {
   return (
     <section className="history-section">
       <div className="history-heading">
@@ -145,7 +152,12 @@ function ResearchHistory() {
         <div className="history-group" key={group.label}>
           <div className="history-label">{group.label}</div>
           {group.items.map((item, index) => (
-            <button className={`history-row ${index === 0 && group.label === "오늘" ? "is-active" : ""}`} key={item}>
+            <button
+              className={`history-row ${index === 0 && group.label === "오늘" ? "is-active" : ""}`}
+              key={item}
+              onClick={onOpen}
+              aria-current={index === 0 && group.label === "오늘" ? "page" : undefined}
+            >
               <Icon name="bubble" />
               <span>{item}</span>
               {index === 0 && group.label === "오늘" ? <Icon name="more" /> : null}
@@ -157,7 +169,7 @@ function ResearchHistory() {
   );
 }
 
-function HomeScreen() {
+function HomeScreen({ onSubmit }) {
   return (
     <section className="home-screen">
       <div className="hero-mark">
@@ -170,7 +182,7 @@ function HomeScreen() {
         전승, 퀘스트, 캐릭터, 모순까지 - 모든 단서를 연결해 드릴게요.
       </p>
 
-      <Composer />
+      <Composer onSubmit={onSubmit} />
     </section>
   );
 }
@@ -188,7 +200,7 @@ function PromptCard({ icon, title, children }) {
   );
 }
 
-function ProgressScreen() {
+function ProgressScreen({ onStop }) {
   return (
     <section className="chat-screen chat-screen--progress">
       <UserBubble />
@@ -209,7 +221,7 @@ function ProgressScreen() {
       </div>
 
       <SourcesPreview />
-      <Composer generating />
+      <Composer generating onStop={onStop} />
     </section>
   );
 }
@@ -239,6 +251,7 @@ function TimelineRow({ active, text, width }) {
 }
 
 function SourcesPreview() {
+  const [openIndex, setOpenIndex] = useState(-1);
   const sources = [
     ["Demo Source 01", "Celestia 운영 기록 · 관리 프로토콜"],
     ["Demo Source 02", "하늘과 땅의 권능 질서 제3권"],
@@ -249,24 +262,32 @@ function SourcesPreview() {
     <section className="source-preview">
       <h2>검색된 데모 출처 (목업 3)</h2>
       <div className="source-accordion">
-        {sources.map(([label, title]) => (
-          <article className="evidence-row source-preview-row" key={label}>
-            <div className="evidence-head">
+        {sources.map(([label, title], index) => {
+          const isOpen = openIndex === index;
+          return (
+          <article className={`evidence-row source-preview-row ${isOpen ? "is-expanded" : ""}`} key={label}>
+            <button className="evidence-head" type="button" onClick={() => setOpenIndex(isOpen ? -1 : index)}>
               <div>
                 <Icon name="file" />
                 <strong>{label}</strong>
                 <span>{title}</span>
               </div>
-              <Icon name="chevronDown" />
-            </div>
+              <Icon name={isOpen ? "chevronUp" : "chevronDown"} />
+            </button>
+            {isOpen ? (
+              <div className="source-preview-detail">
+                <p>관련 문헌의 출처, 기록 맥락, 사용된 키워드를 간단히 검토하는 중입니다.</p>
+              </div>
+            ) : null}
           </article>
-        ))}
+          );
+        })}
       </div>
     </section>
   );
 }
 
-function AnswerScreen() {
+function AnswerScreen({ onSubmit }) {
   return (
     <section className="chat-screen">
       <UserBubble />
@@ -289,12 +310,12 @@ function AnswerScreen() {
 
       <ReferenceCards />
       <EvidenceRows compact />
-      <Composer />
+      <Composer onSubmit={onSubmit} />
     </section>
   );
 }
 
-function SearchScreen() {
+function SearchScreen({ onSubmit }) {
   return (
     <section className="chat-screen chat-screen--search">
       <UserBubble />
@@ -341,12 +362,12 @@ function SearchScreen() {
 
       <SearchResults />
       <div className="more-note">더 많은 결과가 있습니다. 스크롤하거나 필터를 좁혀보세요. <Icon name="chevronDown" /></div>
-      <Composer />
+      <Composer onSubmit={onSubmit} />
     </section>
   );
 }
 
-function EvidenceScreen() {
+function EvidenceScreen({ onSubmit }) {
   return (
     <section className="chat-screen chat-screen--evidence">
       <UserBubble />
@@ -354,7 +375,7 @@ function EvidenceScreen() {
       <AnswerParagraph />
       <div className="soft-divider" />
       <EvidenceRows expanded />
-      <Composer />
+      <Composer onSubmit={onSubmit} />
     </section>
   );
 }
@@ -428,6 +449,7 @@ function ReferenceCards() {
 }
 
 function EvidenceRows({ compact = false, expanded = false }) {
+  const [expandedIndex, setExpandedIndex] = useState(expanded ? 2 : -1);
   const rows = [
     ["Demo Evidence 01", "선죄와 하늘 기록 문헌 구조"],
     ["Demo Evidence 02", "티바트 원소 흐름과의 연대 기록"],
@@ -445,16 +467,20 @@ function EvidenceRows({ compact = false, expanded = false }) {
         </div>
       ) : null}
       {visibleRows.map(([label, title], index) => (
-        <article className={`evidence-row ${expanded && index === 2 ? "is-expanded" : ""}`} key={label}>
-          <div className="evidence-head">
+        <article className={`evidence-row ${expandedIndex === index ? "is-expanded" : ""}`} key={label}>
+          <button
+            className="evidence-head"
+            type="button"
+            onClick={() => setExpandedIndex(expandedIndex === index ? -1 : index)}
+          >
             <div>
               <Icon name="file" />
               <strong>{label}</strong>
               <span>{title}</span>
             </div>
-            <Icon name={expanded && index === 2 ? "chevronUp" : "chevronDown"} />
-          </div>
-          {expanded && index === 2 ? <ExpandedEvidence /> : null}
+            <Icon name={expandedIndex === index ? "chevronUp" : "chevronDown"} />
+          </button>
+          {expandedIndex === index ? <ExpandedEvidence /> : null}
         </article>
       ))}
     </section>
@@ -541,30 +567,60 @@ function SourceChip({ tone, icon, label }) {
   );
 }
 
-function Composer({ generating = false }) {
+function Composer({ generating = false, onSubmit, onStop }) {
+  const [value, setValue] = useState("");
+  const canSubmit = value.trim().length > 0;
+
+  const handleSubmit = (event) => {
+    event.preventDefault();
+
+    if (generating) {
+      onStop?.();
+      return;
+    }
+
+    if (!canSubmit) return;
+    onSubmit?.(value.trim());
+    setValue("");
+  };
+
+  const handleKeyDown = (event) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      handleSubmit(event);
+    }
+  };
+
   return (
-    <div className={`composer ${generating ? "composer--generating" : ""}`}>
-      <div className="composer-placeholder">메시지를 입력하세요... (Enter로 전송)</div>
+    <form className={`composer ${generating ? "composer--generating" : ""}`} onSubmit={handleSubmit}>
+      <textarea
+        className="composer-input"
+        value={value}
+        onChange={(event) => setValue(event.target.value)}
+        onKeyDown={handleKeyDown}
+        placeholder={generating ? "Aurora가 답변을 생성하고 있습니다..." : "메시지를 입력하세요..."}
+        rows={1}
+        disabled={generating}
+      />
       <div className="composer-bottom">
-        <button className="composer-icon" aria-label="첨부">
+        <button className="composer-icon" type="button" aria-label="첨부">
           <Icon name="paperclip" />
         </button>
         <div className="composer-actions">
-          <button className="composer-icon" aria-label="옵션">
+          <button className="composer-icon" type="button" aria-label="옵션">
             <Icon name="sliders" />
           </button>
           {generating ? (
-            <button className="send-button send-button--stop" aria-label="생성 중단">
+            <button className="send-button send-button--stop" type="submit" aria-label="생성 중단">
               <Icon name="stop" />
             </button>
           ) : (
-            <button className="send-button" aria-label="전송">
+            <button className="send-button" type="submit" aria-label="전송" disabled={!canSubmit}>
               <Icon name="send" />
             </button>
           )}
         </div>
       </div>
-    </div>
+    </form>
   );
 }
 
