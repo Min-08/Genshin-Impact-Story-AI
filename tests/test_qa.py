@@ -487,6 +487,39 @@ def test_lore_terms_do_not_promote_to_basic_lookup_entities() -> None:
         assert forbidden_name not in result["final_answer"]
 
 
+def test_heavenly_principles_does_not_match_one_character_weapon_token() -> None:
+    for query in ["천리", "천리가 뭐야", "천리 알려줘"]:
+        result = answer_question(".", query, use_llm=False)
+
+        assert result["intent"] == "unsupported", query
+        assert result["canonical_id"] is None
+        assert result["content_type"] is None
+        assert result["route"]["mode"] != "basic_lookup"
+        assert result["route"]["answer_plan"]["route"] != "basic_lookup"
+        assert "타오르는 천 개의 태양" not in result["final_answer"]
+
+
+def test_single_short_title_token_does_not_resolve_weapon() -> None:
+    result = answer_question(".", "태양", use_llm=False)
+
+    assert result["intent"] == "unsupported"
+    assert result["canonical_id"] is None
+    assert result["content_type"] is None
+    assert result["route"]["mode"] != "basic_lookup"
+    assert "타오르는 천 개의 태양" not in result["final_answer"]
+
+
+def test_partial_weapon_title_with_strong_tokens_still_resolves() -> None:
+    for query in ["천 개의 태양 제련별 수치", "타오르는 천 개의 태양 제련별 수치"]:
+        result = answer_question(".", query, use_llm=False)
+
+        assert result["route"]["mode"] == "basic_lookup", query
+        assert result["intent"] == "weapon_basic_info"
+        assert result["content_type"] == "weapon"
+        assert result["canonical_id"] == "project_amber:weapon:12514"
+        assert result["requested_style"] == "detail"
+
+
 def test_llm_basic_lookup_without_db_resolution_is_not_authoritative(monkeypatch) -> None:
     def fake_semantic_parse(*_args, **_kwargs):
         return {
@@ -644,6 +677,35 @@ def test_context_free_evidence_followup_requires_prior_answer() -> None:
     assert result["route"]["needs_clarification"] is True
     assert result["route"]["unsupported_reason"] == "clarification_required_context"
     assert "직전 답변" in result["final_answer"]
+
+
+def test_explicit_story_topic_does_not_inherit_previous_weapon_context() -> None:
+    state = ConversationState()
+    weapon = answer_question(".", "안개를 가르는 회광 알려줘", use_llm=False, conversation_state=state)
+    state.update_from_result(weapon)
+
+    result = answer_question(".", "수메르 스토리 요약해줘", use_llm=False, conversation_state=state)
+
+    assert result["route"]["mode"] == "summary"
+    assert result["route"]["context_used"] is False
+    assert result["route"]["context_reference"] is None
+    assert result["route"]["resolved_query"] == "수메르 스토리 요약해줘"
+    assert result["canonical_id"] is None
+    assert result["content_type"] is None
+
+
+def test_low_information_story_followup_can_inherit_previous_entity() -> None:
+    state = ConversationState()
+    character = answer_question(".", "푸리나 알려줘", use_llm=False, conversation_state=state)
+    state.update_from_result(character)
+
+    result = answer_question(".", "스토리 요약해줘", use_llm=False, conversation_state=state)
+
+    assert result["route"]["mode"] == "summary"
+    assert result["route"]["context_used"] is True
+    assert result["route"]["context_reference"] == "last_entity"
+    assert result["route"]["answer_plan"]["intent"] == "character_story_summary"
+    assert result["route"]["unsupported_reason"] == "route_not_implemented"
 
 
 def test_answer_question_handles_greeting_without_lookup() -> None:

@@ -688,7 +688,7 @@ def resolve_conversation_context(query: str, state: ConversationState | None) ->
             "context_reference": "last_answer",
             "context_used": True,
         }
-    if looks_like_story_summary(query) and active_name not in query:
+    if looks_like_story_summary(query) and active_name not in query and looks_like_story_summary_followup(query):
         return {
             "route": "summary",
             "resolved_query": f"{active_name} 스토리 요약",
@@ -748,6 +748,13 @@ def looks_like_story_summary(query: str) -> bool:
     has_story_scope = any(normalize_alias(term) in normalized for term in STORY_SUMMARY_TERMS)
     has_summary = any(normalize_alias(term) in normalized for term in BRIEF_STYLE_TERMS) or "알려줘" in normalized
     return has_story_scope and has_summary
+
+
+def looks_like_story_summary_followup(query: str) -> bool:
+    if not looks_like_story_summary(query):
+        return False
+    remainder = followup_remainder(query, set(STORY_SUMMARY_TERMS) | set(BRIEF_STYLE_TERMS) | set(QUERY_HINTS))
+    return is_low_information_remainder(remainder)
 
 
 def looks_like_detail_followup(query: str) -> bool:
@@ -896,8 +903,13 @@ def resolve_qa_target(db_path: Path, query: str, *, language: str = DEFAULT_LANG
             lexical_score += len(title_norm) * 10
         if title_norm in query_norm:
             lexical_score += len(title_norm) * 12
-        token_score = sum(1 for token in title.split() if normalize_alias(token) in original_norm)
-        lexical_score += token_score * 4
+        matched_tokens = [
+            token_norm
+            for token_norm in (normalize_alias(token) for token in title.split())
+            if token_norm and token_norm in original_norm
+        ]
+        if has_strong_partial_title_match(matched_tokens):
+            lexical_score += len(matched_tokens) * 4
         if lexical_score <= 0:
             continue
         score = lexical_score
@@ -931,6 +943,17 @@ def title_candidates(db_path: Path, *, language: str) -> list[dict[str, Any]]:
     ]
     conn.close()
     return rows
+
+
+def has_strong_partial_title_match(matched_tokens: list[str]) -> bool:
+    if not matched_tokens:
+        return False
+    meaningful_tokens = [token for token in matched_tokens if len(token) >= 2]
+    if len(meaningful_tokens) >= 2:
+        return True
+    if meaningful_tokens and len(meaningful_tokens[0]) >= 3:
+        return True
+    return len(matched_tokens) >= 2 and sum(len(token) for token in matched_tokens) >= 3
 
 
 def strip_query_hints(query: str) -> str:
