@@ -679,6 +679,57 @@ def test_context_free_evidence_followup_requires_prior_answer() -> None:
     assert "직전 답변" in result["final_answer"]
 
 
+def test_future_route_turn_clears_source_followup_context() -> None:
+    state = ConversationState()
+    first = answer_question(".", "푸리나 알려줘", use_llm=False, conversation_state=state)
+    state.update_from_result(first)
+    assert state.last_sources
+
+    story = answer_question(".", "스토리 요약해줘", use_llm=False, conversation_state=state)
+    state.update_from_result(story)
+    assert story["route"]["mode"] == "summary"
+    assert story["route"]["unsupported_reason"] == "route_not_implemented"
+    assert state.last_sources == []
+
+    evidence = answer_question(".", "근거는?", use_llm=False, conversation_state=state)
+
+    assert evidence["route"]["mode"] == "unsupported"
+    assert evidence["route"]["needs_clarification"] is True
+    assert evidence["route"]["unsupported_reason"] == "clarification_required_context"
+    assert evidence["sources"] == []
+
+
+def test_chitchat_does_not_create_source_followup_context() -> None:
+    state = ConversationState()
+    greeting = answer_question(".", "안녕", use_llm=False, conversation_state=state)
+    state.update_from_result(greeting)
+
+    result = answer_question(".", "출처는?", use_llm=False, conversation_state=state)
+
+    assert greeting["sources"] == []
+    assert state.last_sources == []
+    assert result["route"]["mode"] == "unsupported"
+    assert result["route"]["unsupported_reason"] == "clarification_required_context"
+
+
+def test_unsupported_strategy_turn_clears_prior_source_followup_context() -> None:
+    state = ConversationState()
+    first = answer_question(".", "푸리나 알려줘", use_llm=False, conversation_state=state)
+    state.update_from_result(first)
+    assert state.last_sources
+
+    unsupported = answer_question(".", "푸리나 세팅 알려줘", use_llm=False, conversation_state=state)
+    state.update_from_result(unsupported)
+    assert unsupported["route"]["mode"] == "unsupported"
+    assert unsupported["sources"] == []
+    assert state.last_sources == []
+
+    result = answer_question(".", "근거는?", use_llm=False, conversation_state=state)
+
+    assert result["route"]["mode"] == "unsupported"
+    assert result["route"]["unsupported_reason"] == "clarification_required_context"
+
+
 def test_explicit_story_topic_does_not_inherit_previous_weapon_context() -> None:
     state = ConversationState()
     weapon = answer_question(".", "안개를 가르는 회광 알려줘", use_llm=False, conversation_state=state)

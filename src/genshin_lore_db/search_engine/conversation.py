@@ -28,11 +28,12 @@ class ConversationState:
     def update_from_result(self, result: dict[str, Any]) -> None:
         self.turn_count += 1
         route = result.get("route") if isinstance(result.get("route"), dict) else {}
+        route_mode = str(route.get("mode") or "")
         intent = str(result.get("intent") or route.get("intent") or "")
-        self.last_route = str(route.get("mode") or "") or self.last_route
+        self.last_route = route_mode or self.last_route
         self.last_intent = intent or self.last_intent
         self.last_answer_style = str(result.get("requested_style") or route.get("requested_style") or "") or self.last_answer_style
-        self.last_sources = list(result.get("sources") or [])
+        self.last_sources = source_context_from_result(result)
 
         canonical_id = result.get("canonical_id")
         content_type = result.get("content_type")
@@ -60,3 +61,17 @@ def topic_for_intent(intent: str | None) -> str | None:
     if intent == "character_talent":
         return "character_talent"
     return intent
+
+
+def source_context_from_result(result: dict[str, Any]) -> list[dict[str, Any]]:
+    route = result.get("route") if isinstance(result.get("route"), dict) else {}
+    route_mode = str(route.get("mode") or "")
+    if route_mode not in {"basic_lookup", "source_reader"}:
+        return []
+    return [source for source in result.get("sources") or [] if is_source_context(source)]
+
+
+def is_source_context(source: Any) -> bool:
+    if not isinstance(source, dict):
+        return False
+    return any(source.get(key) for key in ("raw_ref", "source_url", "unit_id", "document_id", "evidence_id"))

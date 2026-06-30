@@ -10,7 +10,7 @@ from genshin_lore_db.io import read_json
 from genshin_lore_db.normalize import clean_text
 from genshin_lore_db.search_engine.answer_plan import AnswerPlan, normalize_answer_plan
 from genshin_lore_db.search_engine.aliases import normalize_alias
-from genshin_lore_db.search_engine.conversation import ConversationState
+from genshin_lore_db.search_engine.conversation import ConversationState, is_source_context
 from genshin_lore_db.search_engine.local_llm import DEFAULT_OLLAMA_MODEL, rewrite_answer_with_ollama
 from genshin_lore_db.search_engine.router import is_greeting_query, route_query
 from genshin_lore_db.search_engine.semantic import parse_query_semantics_with_ollama
@@ -668,8 +668,9 @@ def resolve_conversation_context(query: str, state: ConversationState | None) ->
     active = state.active_entity or {}
     active_name = clean_text(str(active.get("name") or ""))
     normalized = normalize_alias(query)
+    has_sources = has_conversation_source_context(state)
     if not active_name:
-        if is_context_only_source_followup(query) and state.last_sources:
+        if is_context_only_source_followup(query) and has_sources:
             return {
                 "route": "source_reader",
                 "requested_style": source_reader_style_for_query(query),
@@ -679,7 +680,7 @@ def resolve_conversation_context(query: str, state: ConversationState | None) ->
         return {}
     if any(normalize_alias(term) in normalized for term in SOURCE_READER_TERMS) and (
         is_context_only_source_followup(query) or normalize_alias(active_name) in normalized
-    ):
+    ) and has_sources:
         source_style = source_reader_style_for_query(query)
         return {
             "route": "source_reader",
@@ -720,6 +721,10 @@ def resolve_conversation_context(query: str, state: ConversationState | None) ->
             "context_used": True,
         }
     return {}
+
+
+def has_conversation_source_context(state: ConversationState) -> bool:
+    return any(is_source_context(source) for source in state.last_sources)
 
 
 def requested_style_for_query(query: str) -> str:
@@ -1646,7 +1651,7 @@ def small_talk_answer(query: str, db_path: Path, *, route: dict[str, Any]) -> di
             "error": None,
         },
         "validation": {"ok": True, "reasons": []},
-        "sources": [{"db_path": str(db_path)}],
+        "sources": [],
         "route": route,
         "requested_format": route.get("requested_format") or "paragraph",
         "requested_style": route.get("requested_style") or "default",
@@ -1662,9 +1667,11 @@ def evidence_answer(
     route: dict[str, Any],
     conversation_state: ConversationState | None,
 ) -> dict[str, Any]:
-    sources = list(conversation_state.last_sources) if conversation_state and conversation_state.last_sources else []
-    if not sources:
-        sources = [{"db_path": str(db_path)}]
+    sources = [
+        source
+        for source in (conversation_state.last_sources if conversation_state and conversation_state.last_sources else [])
+        if is_source_context(source)
+    ]
     lines = ["직전 답변의 근거로 저장된 출처 metadata를 표시합니다."]
     for index, source in enumerate(sources, start=1):
         source_name = source.get("source") or "project_amber"
@@ -1725,7 +1732,7 @@ def unsupported_answer(query: str, db_path: Path, *, route: dict[str, Any] | Non
             "error": {"type": "unsupported_query", "message": message},
         },
         "validation": {"ok": True, "reasons": []},
-        "sources": [{"db_path": str(db_path)}],
+        "sources": [],
         "route": route,
         "requested_format": route.get("requested_format") or requested_format_for_query(query),
         "requested_style": route.get("requested_style") or requested_style_for_query(query),
