@@ -1,171 +1,174 @@
-# 라우팅 및 QA 문제 기록
+# Routing And QA Issue Log
 
-이 문서는 대화형 QA에서 발견된 라우팅/대상 해석 문제를 임시로 모아두기 위한 기록이다.
+Status: updated during v0.8.2 Direction/Roadmap Alignment.
 
-## 0. 현재 상태
+This file tracks routing and QA issues found in the interactive answer path.
+Historical v0.6.x issues remain useful as regression context, but the current
+active direction is DB-Grounded Query Understanding before v0.9 writer work.
 
-v0.6.2~v0.6.4 기준으로 이 문서의 핵심 문제는 대부분 해결됐다.
-
-```text
-완료:
-- `아야카`, `아야카에 대해서 알려줘` 같은 exact entity 질의는 basic_lookup으로 보정된다.
-- `안녕`은 chitchat guard로 처리되어 캐릭터 기본정보로 승격되지 않는다.
-- route metadata는 AnswerPlan 기반 실행 계획으로 정리됐다.
-- `추천`, `티어`, `세팅`, `파티`, `조합`, `메타`, `딜사이클`, `나선비경`, `공략`, `육성법`, `성능`은 unsupported hard guard로 처리된다.
-
-후속:
-- router.py 단독 결과와 answer layer의 보정 결과를 별도 trace에서 비교하는 개발자용 diagnostics.
-- Source Reader/Evidence Pack 통합 후 route별 writer trace 확장.
-```
-
-아래 내용은 과거 문제 기록으로 유지한다.
-
-## 1. 캐릭터 단독 질의가 analysis로 라우팅됨
-
-### 현상
-
-다음처럼 캐릭터 이름만 입력하거나 자연어로 기본 정보를 묻는 경우에도 상태줄의 route가 `analysis:0.55`로 표시된다.
+Canonical direction:
 
 ```text
-질문> 아야카에 대해서 알려줘
-[route=analysis:0.55 | intent=character_basic_info | llm=used]
-
-질문> 아야카
-[route=analysis:0.55 | intent=character_basic_info | llm=used]
+docs/DB_GROUNDED_QUERY_UNDERSTANDING.md
 ```
 
-### 확인 결과
+## Current Status
 
-현재 라우터 기준 출력:
+Implemented/current:
+
+- `basic_lookup` QA supports current structured targets only.
+- `search` and `investigate` are the current lore exploration paths.
+- Source Reader and Evidence Pin workflows exist.
+- Local LLM can support rewrite/semantic parsing, but final facts are validated
+  by deterministic DB/entity logic and validators.
+
+Fixed in v0.8.1 QA/search bug bash:
+
+- Supported exact lookup routes are hardened for current QA targets.
+- Ambiguous lore terms are less likely to fall into wrong structured lookup.
+- Explicit new topics are protected from stale `last_entity` context.
+- Story/topic follow-ups use previous context only when the query is genuinely
+  low-information.
+- Regression tests cover supported lookup, ambiguous lore concepts, and
+  conversation-context behavior.
+
+Planned for v0.8.3:
+
+- DB-Grounded Query Understanding / Meaning Search.
+- Candidate Meaning Pack diagnostics.
+- Strong/weak/unsafe match policy.
+- LLM semantic adjudication over DB candidates.
+- Deterministic validation of selected meanings against DB candidates and
+  source-readable Search/Source Reader handles.
+
+## Resolved Issue: Entity-Only Basic Lookup Routing
+
+Historical symptom:
 
 ```text
-아야카에 대해서 알려줘 -> route=analysis:0.55, signals=["default:analysis"]
-아야카 -> route=analysis:0.55, signals=["default:analysis"]
-아야카 정보 -> route=basic_lookup:0.82, signals=["game_info:정보"]
-아야카 기본정보 -> route=basic_lookup:0.82, signals=["game_info:기본정보", "game_info:정보"]
+User asks a character name or a plain "tell me about X" query.
+Route metadata shows analysis, but QA facts resolve to character_basic_info.
 ```
 
-QA 결과는 별도로 캐릭터를 찾아 `intent=character_basic_info`를 만든다. 즉, 답변 내용은 정형 기본정보인데 라우팅 표시는 `analysis`가 된다.
+Resolution:
 
-### 원인
+- Deterministic entity resolution and AnswerPlan metadata now keep current
+  supported QA behavior aligned.
+- The regression expectation is that implemented structured supported-entity
+  lookups remain `basic_lookup` when the match is strong and the query has no
+  relation/analysis/research signal.
 
-`src/genshin_lore_db/search_engine/router.py`의 `route_query()`는 `정보`, `기본정보`, `캐릭터`, `무기`, `성유물` 같은 명시적 키워드가 있을 때만 `basic_lookup`으로 보낸다.
+Remaining guard:
 
-캐릭터 이름만 있거나 `~에 대해서 알려줘`처럼 일반적인 질의 표현만 있는 경우에는 `GAME_INFO_TERMS`에 걸리지 않아 마지막 default branch인 `analysis:0.55`로 떨어진다.
+- v0.8.3 must avoid broadening this into weak partial matches. A supported
+  entity match is safe only when it is strong and content-type compatible.
 
-반면 `src/genshin_lore_db/search_engine/qa.py`의 `answer_question()`은 라우터와 독립적으로 `resolve_qa_target()`을 실행해 캐릭터 대상을 찾는다.
+## Resolved Issue: Greeting Or Chitchat Promoted To QA
 
-### 판단
-
-과거 코드 기준으로는 의도된 fallback 동작이지만, 제품 동작으로는 부자연스러웠다.
-
-`intent=character_basic_info`로 정형 QA가 성공한 경우에는 route도 `basic_lookup`이 되는 편이 일관적이다.
-
-현재 상태:
+Historical symptom:
 
 ```text
-v0.6.2에서 deterministic entity resolver가 LLM parser보다 먼저 실행되어 basic_lookup으로 보정한다.
+User sends a greeting.
+Fallback search hits a character quote and QA returns character info.
 ```
 
-### 수정 후보
+Resolution:
 
-- 라우터가 캐릭터/무기/성유물 alias 또는 제목 후보를 참조해 단독 엔티티 질의를 `basic_lookup`으로 분류한다.
-- 또는 terminal/answer layer에서 QA facts가 `character_basic_info`, `weapon_basic_info`, `reliquary_effect_lookup`으로 확정되면 route를 `basic_lookup`으로 보정한다.
-- `알려줘`, `대해서 알려줘`, `뭐야` 같은 일반 기본정보 질의 표현을 별도 signal로 추가한다.
-- 라우터와 QA resolver가 서로 다른 판단을 내릴 때 status line에 mismatch를 기록하거나 테스트로 고정한다.
+- Greeting/chitchat guard runs before supported QA resolution.
+- Such inputs should not enter structured lookup or source search unless the
+  user also supplies a real lore/entity topic.
 
-## 2. 일반 인사말이 캐릭터 기본정보로 답변됨
+## Resolved Issue: Route Metadata And QA Execution Mismatch
 
-### 현상
+Historical symptom:
 
 ```text
-질문> 안녕
-[route=analysis:0.55 | intent=character_basic_info | llm=used]
-말라니는 5성 캐릭터입니다.
-...
+route=analysis
+intent=character_basic_info
+answer is structured basic lookup
 ```
 
-### 확인 결과
+Resolution:
 
-`resolve_qa_target()` 결과:
+- AnswerPlan metadata and answer execution now share more of the same current
+  QA decision path.
+- Regression checks should continue comparing route, intent, selected target,
+  validation status, and final answer mode.
+
+## Active Risk: Weak Lore Overlap Becomes Wrong Basic Lookup
+
+Problem:
+
+Short lore concepts can partially overlap with supported entity titles. A weak
+text/title match must not become avatar/weapon/reliquary `basic_lookup`.
+
+Required v0.8.3 behavior:
+
+- Build a Candidate Meaning Pack before final routing.
+- Classify supported entity/title matches as strong, weak, or unsafe.
+- Treat lore concepts as `lore_concept` unless there is a strong supported
+  exact/alias/content-type match.
+- Prefer source-readable `search` or `investigate` when the target is a lore
+  concept and no implemented writer exists.
+
+## Active Risk: Conversation Context Hijacks Explicit Topics
+
+Problem:
+
+Previous conversation context is helpful for "tell me more" follow-ups but
+dangerous when the user asks a new explicit topic.
+
+Required v0.8.3 behavior:
+
+- Use `last_entity` or `last_sources` only for genuinely low-information
+  follow-ups.
+- Reject previous context when the query contains a new explicit topic, entity,
+  concept, title, or relation.
+- Emit diagnostics showing whether context was considered, used, or rejected.
+
+## Active Risk: LLM Parse Treated As Fact Authority
+
+Problem:
+
+The LLM can understand natural language better than brittle heuristics, but it
+can also invent or overconfidently select unsupported meanings.
+
+Required v0.8.3 behavior:
+
+- Keep LLM intent understanding as a core capability.
+- Feed the LLM DB-grounded candidates instead of an open-ended authority role.
+- Reject LLM candidates that cannot be found in deterministic DB/entity
+  resolution.
+- Validate answer claims through structured DB facts, Source Reader spans, or
+  Evidence Pack depending on route.
+
+## Writer Status
+
+Do not file summary/analysis/research missing-writer behavior as a bug unless
+the current route claims to be implemented. At v0.8.2:
+
+- `summary`: future-route writer work.
+- `analysis`: search/investigate foundation exists, final writer not
+  implemented.
+- `research`: future route, not an autonomous agent.
+
+Current supported lore exploration path:
 
 ```text
-안녕 -> project_amber:avatar:10000102 / title=말라니 / content_type=avatar
+search
+investigate
+Source Reader
+Evidence Pin
 ```
 
-검색 fallback 결과의 상위 hit는 말라니 quotes의 다음 문장이다.
+## Regression Checklist
 
-```text
-안녕? 다른 팀원들도 안녕?
-```
+Future routing/QA bug bash passes should include:
 
-이후 해당 canonical_id가 말라니 캐릭터로 해석되어 `character_basic_info` 답변이 생성된다.
-
-### 원인
-
-`qa.py`의 `resolve_qa_target()`은 제목 기반 score가 없으면 `search_project_amber_v2()` fallback을 실행한다.
-
-이 fallback이 캐릭터 대사 문서까지 검색하고, 대사에 포함된 `안녕`이 매칭된 뒤 canonical_id를 캐릭터 기본정보 대상으로 변환한다.
-
-### 판단
-
-이 동작은 버그에 가깝다. 인사말이나 너무 짧은 일반 발화는 정형 QA 대상 해석으로 들어가면 안 된다.
-
-현재 상태:
-
-```text
-v0.6.1 이후 greeting guard가 먼저 실행되어 route=chitchat, intent=small_talk로 처리한다.
-```
-
-### 수정 후보
-
-- `안녕`, `안녕하세요`, `ㅎㅇ`, `하이` 같은 인사말은 terminal/chat layer에서 별도 small talk intent로 처리한다.
-- `resolve_qa_target()` fallback 전에 최소 질의 길이, 엔티티 힌트, content type hint를 검사한다.
-- 정형 QA fallback 검색에서는 `avatar_quotes` 같은 대사 문서를 제외하거나, title/localization 매칭보다 낮은 신뢰도의 text hit는 바로 캐릭터 기본정보로 승격하지 않는다.
-- fallback hit를 canonical_id로 바꾸기 전에 hit의 `document_kind`, `title`, `metadata.section`을 검사한다.
-
-## 3. route와 intent가 독립 실행되어 불일치 가능
-
-### 현상
-
-터미널 출력의 `route`는 `terminal.py`에서 `route_query()` 결과를 붙인 값이고, `intent`는 `qa.py`에서 facts를 만든 뒤 정해지는 값이다.
-
-```text
-route=analysis:0.55 | intent=character_basic_info
-```
-
-### 원인
-
-과거 `src/genshin_lore_db/search_engine/terminal.py`:
-
-```python
-route = route_query(query).to_dict() if use_routing else None
-result = answer_question(root, query, use_llm=use_llm, model=model)
-```
-
-과거 route는 answer execution plan으로 쓰이지 않고, 표시용 metadata에 가까웠다.
-
-현재 상태:
-
-```text
-v0.6.2에서 route_answer_query()가 AnswerPlan metadata를 만들고 answer_question()이 이를 실행 판단에 사용한다.
-```
-
-### 수정 후보
-
-- route를 먼저 결정한 뒤 answer layer가 해당 route에 맞는 resolver/writer를 실행하게 만든다.
-- 또는 QA 결과가 정형 intent로 확정되면 route metadata를 재평가한다.
-- 테스트에 route/intent 일관성 케이스를 추가한다.
-
-## 관련 테스트 상태
-
-과거 확인 시점에서 다음 테스트는 통과했다.
-
-```text
-tests/test_router.py
-tests/test_terminal.py
-
-4 passed
-```
-
-현재는 answer/QA 테스트와 answer evaluation에 greeting, exact lookup, unsupported hard guard, requested_style, ConversationState 케이스가 추가됐다.
+- Strong supported entity exact lookup remains `basic_lookup`.
+- Lore concept queries do not produce wrong weapon/avatar/reliquary answers.
+- Explicit new topics ignore stale context.
+- Low-information follow-ups can inherit context when appropriate.
+- LLM semantic adjudication cannot invent unsupported entities.
+- Search/investigate results expose source-readable handles.
+- Future-route responses remain conservative until writers exist.

@@ -4,6 +4,46 @@
 
 현재 검색엔진 단계는 **v0.8**이고, Evidence Pack 스키마는 `evidence_pack.v0.5`를 유지하면서 v0.8 candidate/pinned evidence 필드를 `investigate` 결과에 추가합니다.
 
+## v0.8.2 Direction Alignment
+
+The current search engine is the source-readable lore exploration path. Use
+`search` when the user needs ranked source candidates, and use `investigate`
+when the user needs an Evidence Pack style bundle with candidate and pinned
+evidence. `answer` remains the structured QA path for implemented
+`basic_lookup` targets only.
+
+DB-Grounded Query Understanding / Meaning Search is planned for v0.8.3 and is
+not implemented yet. Until then, docs and tests should treat query
+understanding as a direction, not as a completed module.
+
+Principles for the next search/QA hardening pass:
+
+- Do not optimize primarily for answer speed.
+- Search and inspect DB candidates before final routing.
+- Keep supported exact lookup strict.
+- Do not promote lore concepts into avatar/weapon/reliquary `basic_lookup`
+  through weak partial overlap.
+- Use previous conversation context only for genuinely low-information
+  follow-ups.
+- Do not let `last_entity` hijack explicit new topics.
+- Use the LLM as a semantic adjudicator, not the final fact authority.
+- Validate LLM-selected meanings through deterministic DB/entity resolution and
+  source-readable Search/Source Reader handles.
+
+Current writer status:
+
+- `basic_lookup`: implemented for supported structured QA targets.
+- `search`: implemented as source-readable lore exploration.
+- `investigate`: implemented as Evidence Pack oriented lore exploration.
+- `summary`, `analysis`, `research`: writer implementations are planned for
+  v0.9+ and should remain conservative future routes until implemented.
+
+Canonical direction document:
+
+```text
+docs/DB_GROUNDED_QUERY_UNDERSTANDING.md
+```
+
 ## CLI
 
 ```powershell

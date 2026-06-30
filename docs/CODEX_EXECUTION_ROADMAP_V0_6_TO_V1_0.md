@@ -38,9 +38,15 @@ The current practical implementation center is:
    - Can read units, windows, sections, documents, and parallel language text.
    - This is the foundation for grounded summary, analysis, and research.
 
-4. **Evidence Pin primitives**
-   - Evidence pin objects exist.
-   - They need persistent storage, CLI/API workflow, and integration with investigate/research.
+4. **Evidence Pin workflow**
+   - Evidence pins, JSONL storage, pin/list/show CLI behavior, and
+     `investigate()` candidate/pinned evidence output are operational at v0.8.
+
+5. **DB-Grounded Query Understanding**
+   - Planned for v0.8.3.
+   - Query meaning must be inferred from DB-backed candidates before final
+     routing.
+   - This is required before summary/analysis/research writer work begins.
 
 The main implementation risk is scope explosion:
 - Do not build vector search too early.
@@ -78,7 +84,8 @@ Allowed:
 - Connecting search results to source windows
 - Adding CLI commands for source reading
 - Adding evidence storage and evidence viewing
-- Implementing summary route
+- Implementing DB-Grounded Query Understanding / Meaning Search
+- Implementing summary route after v0.8.x stabilization
 - Implementing grounded answer orchestration
 - Implementing analysis route
 - Implementing research v1 after the evidence pipeline exists
@@ -97,6 +104,11 @@ deterministic data flow
 ```
 
 Never place LLM generation before source visibility and validation.
+
+Do not optimize primarily for answer speed. A slow conservative answer is
+better than a fast wrong answer. The system should inspect DB candidates and
+source-readable evidence before it commits to a route, especially for lore
+concepts and ambiguous short queries.
 
 ### 1.4 Required Completion Standard
 
@@ -600,7 +612,7 @@ Allow evidence to be selected, stored, listed, and reused.
 
 ---
 
-## v0.8.1 — Evidence Store
+## v0.8 Evidence Pin Step A - Evidence Store
 
 ### Storage
 
@@ -652,7 +664,7 @@ data/workspaces/default/evidence_pins.jsonl
 
 ---
 
-## v0.8.2 — `pin-evidence` CLI
+## v0.8 Evidence Pin Step B - `pin-evidence` CLI
 
 ### Command
 
@@ -693,7 +705,7 @@ translation_note
 
 ---
 
-## v0.8.3 — Evidence List / Show CLI
+## v0.8 Evidence Pin Step C - Evidence List / Show CLI
 
 ### Commands
 
@@ -720,7 +732,7 @@ python -m genshin_lore_db evidence list --query "셀레스티아"
 
 ---
 
-## v0.8.4 — Candidate Evidence in Investigate
+## v0.8 Evidence Pin Step D - Candidate Evidence in Investigate
 
 ### Objective
 
@@ -775,13 +787,121 @@ tests pass
 
 ---
 
-# v0.9 — Summary V1
+# v0.8.x - Stabilization Before Writer Work
+
+This phase is required before v0.9. It exists because the system should not
+start summary/analysis/research writers while query meaning is still routed by
+brittle heuristics or weak entity overlap.
+
+## v0.8.1 - Active QA/Search Bug Bash and Current-Scope Hardening
+
+Status: completed before v0.8.2.
+
+Scope:
+
+1. Harden exact supported `basic_lookup` behavior.
+2. Keep supported exact lookup strict.
+3. Prevent lore concepts from being promoted to avatar/weapon/reliquary
+   `basic_lookup` by weak partial overlap.
+4. Keep previous conversation context only for genuinely low-information
+   follow-ups.
+5. Ensure explicit new topics are not hijacked by `last_entity`.
+6. Add regression coverage for ambiguous lore terms, explicit story/topic
+   requests, and supported entity lookups.
+
+## v0.8.2 - Direction/Roadmap Alignment
+
+Status: current documentation goal.
+
+Scope:
+
+1. Add `docs/DB_GROUNDED_QUERY_UNDERSTANDING.md`.
+2. Align roadmap and search/QA docs with meaning-first routing.
+3. State that speed is not the primary optimization target.
+4. Make clear that LLM intent understanding should be strengthened, but LLM
+   output must be validated by deterministic DB/entity resolution and Source
+   Reader evidence.
+5. Mark summary/analysis/research writers as future work until implementation
+   exists.
+
+## v0.8.3 - DB-Grounded Query Understanding / Meaning Search
+
+Status: planned next implementation phase.
+
+Scope:
+
+1. Add a query-understanding layer before final routing.
+2. Build Candidate Meaning Pack diagnostics from DB-backed candidates.
+3. Classify candidate matches as strong, weak, or unsafe.
+4. Use the LLM as a semantic adjudicator over DB candidates, not as a fact
+   authority.
+5. Validate LLM-selected meanings through deterministic DB/entity resolver and
+   source-readable Search/Source Reader handles.
+6. Route lore concepts to source-readable `search`/`investigate` behavior when
+   no implemented structured writer exists.
+
+Done definition:
+
+```text
+candidate meaning pack exists
+strong/weak/unsafe policy is implemented
+ambiguous lore concepts do not enter wrong basic_lookup
+explicit new topics ignore stale last_entity context
+low-information follow-ups can still inherit context
+LLM semantic adjudication is validated against DB candidates
+tests and evaluations pass
+```
+
+## v0.8.4 - Regression Cleanup
+
+Status: planned after v0.8.3.
+
+Scope:
+
+1. Run QA/search bug bash again against v0.8.3.
+2. Fix route/status/intent mismatches introduced by meaning-first routing.
+3. Expand evaluation cases for ambiguous terms and future-route behavior.
+4. Correct docs that still imply unimplemented writers exist.
+5. Keep v0.9 blocked until cleanup passes.
+
+## v0.8.x Done Definition
+
+```text
+v0.8 Evidence Pin remains stable
+v0.8.1 bug bash regressions remain fixed
+v0.8.2 docs are aligned
+v0.8.3 query understanding is implemented and tested
+v0.8.4 regression cleanup is complete
+summary/analysis/research writers are still correctly marked as future work
+```
+
+---
+
+# v0.9 - Summary/Analysis/Research Writer Foundation
 
 ## Goal
 
-Implement the first non-basic route that actually answers from source text.
+Implement the first non-basic writer foundation only after v0.8.x stabilization
+and DB-Grounded Query Understanding are complete.
 
-Current summary route should stop being `route_not_implemented` for supported scopes.
+The initial v0.9 writer target is still Summary V1, but it must be designed as
+part of the broader summary/analysis/research writer stack. Current summary,
+analysis, and research routes should remain conservative until their writers
+and validators are actually implemented.
+
+---
+
+## v0.9 Entry Requirements
+
+v0.9 must not start until:
+
+1. v0.8.3 DB-Grounded Query Understanding / Meaning Search is implemented.
+2. Candidate Meaning Pack diagnostics are available in route/search QA traces.
+3. Strong/weak/unsafe match policy prevents weak lore overlap from entering
+   structured `basic_lookup`.
+4. Explicit new topics are protected from stale conversation context.
+5. Source-readable search/investigate results are available for lore concepts.
+6. v0.8.4 regression cleanup is complete.
 
 ---
 
@@ -2035,12 +2155,35 @@ Return:
 
 ---
 
-## Batch 4 — v0.9
+## Batch 3.5 - v0.8.x Stabilization
 
 ```text
-Implement only v0.9 from CODEX_EXECUTION_ROADMAP_V0_6_TO_V1_0.md.
+Implement only the v0.8.x stabilization phase from CODEX_EXECUTION_ROADMAP_V0_6_TO_V1_0.md.
 
-Do not implement analysis, research, vector search, API, or frontend.
+Do not implement summary, analysis, research writers, vector search, motif graph, API, or frontend.
+
+Focus:
+- v0.8.1 QA/search regression hardening
+- v0.8.2 roadmap/docs alignment
+- v0.8.3 DB-Grounded Query Understanding / Meaning Search
+- v0.8.4 regression cleanup
+- strict basic_lookup and conservative context inheritance
+
+Return:
+- changed files
+- route/query-understanding diagnostics
+- test summary
+- remaining gaps before v0.9
+```
+
+---
+
+## Batch 4 - v0.9
+
+```text
+Implement only v0.9 from CODEX_EXECUTION_ROADMAP_V0_6_TO_V1_0.md after v0.8.x stabilization is complete.
+
+Do not implement vector search, motif graph, API, or frontend.
 
 Focus:
 - summary target resolver
@@ -2049,6 +2192,7 @@ Focus:
 - extractive fallback
 - LLM summary generator
 - summary validator
+- writer contracts that keep analysis/research future routes conservative
 
 Return:
 - changed files

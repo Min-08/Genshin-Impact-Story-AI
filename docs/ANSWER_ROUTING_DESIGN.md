@@ -1360,6 +1360,42 @@ search_textmap(query: str, langs: list[str] = ["ko", "en", "ja", "zh"]) -> list[
 build_evidence_pack(query: str, hits: list[SearchHit], mode: str) -> EvidencePack
 ```
 
+### 10.1.1 v0.8.2/v0.8.3 Meaning-First Routing Alignment
+
+Before v0.9 writer work, routing should be realigned around
+DB-Grounded Query Understanding. The design target is documented in
+`docs/DB_GROUNDED_QUERY_UNDERSTANDING.md`.
+
+Current implementation status:
+
+- `basic_lookup` is implemented only for supported structured QA targets.
+- `search` and `investigate` are the current source-readable lore exploration
+  paths.
+- `summary`, `analysis`, and `research` writers are future-route work and must
+  not be described as implemented final answer generators.
+
+Policy changes for the next implementation phase:
+
+1. Build a Candidate Meaning Pack from DB-backed candidates before final route
+   selection.
+2. Keep supported exact lookup strict.
+3. Treat lore concepts as `lore_concept` candidates unless there is a strong
+   supported-entity match.
+4. Classify candidates as strong, weak, or unsafe.
+5. Do not allow weak partial overlap to promote a lore concept into
+   avatar/weapon/reliquary `basic_lookup`.
+6. Use previous conversation context only for genuinely low-information
+   follow-ups.
+7. Reject stale `last_entity` context when the user asks an explicit new topic.
+8. Use the LLM as a semantic adjudicator over DB candidates, not as final fact
+   authority.
+9. Validate LLM-selected meanings through deterministic DB/entity resolution and
+   source-readable Source Reader/Evidence handles.
+
+Speed is not the primary optimization target for this layer. A slow
+conservative route that returns search/investigate handles is better than a fast
+wrong `basic_lookup` answer.
+
 ### 10.2 summary 전용 도구
 
 ```python

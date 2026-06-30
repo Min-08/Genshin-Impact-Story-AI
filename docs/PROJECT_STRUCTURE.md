@@ -17,6 +17,7 @@ docs/
   PROJECT_VISION.md
   ARCHITECTURE.md
   DATA_PIPELINE.md
+  DB_GROUNDED_QUERY_UNDERSTANDING.md
   SEARCH_ENGINE.md
   ANSWER_ROUTING_DESIGN.md
   ROADMAP.md
@@ -242,6 +243,9 @@ v0.8
 다음 단계에서 추가될 가능성이 높은 배치:
 
 ```text
+src/genshin_lore_db/search_engine/query_understanding.py
+  planned v0.8.3 DB-Grounded Query Understanding / Meaning Search; not implemented yet
+
 src/genshin_lore_db/answer_engine/
   router_contracts.py
   planner.py
