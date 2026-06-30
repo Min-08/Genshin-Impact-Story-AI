@@ -1,6 +1,6 @@
 [project]
 name = "genshin-lore-db"
-version = "0.6.4"
+version = "0.7.0"
 description = "Project Amber v2 corpus pipeline and developer search engine for Genshin Impact lore research"
 requires-python = ">=3.11"
 dependencies = []

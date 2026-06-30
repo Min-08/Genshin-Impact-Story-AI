@@ -13,6 +13,20 @@ EVIDENCE_PIN_VERSION = "evidence_pin.v0.1"
 SOURCE_LEVELS = {"L0", "L1", "L2", "L3", "L4", "L5"}
 EVIDENCE_ROLES = {"supports", "weakly_supports", "context", "counter", "ambiguous", "translation_note"}
 WINDOW_ACTIONS = ["expand_before", "expand_after", "read_section", "read_parallel", "pin_evidence"]
+SOURCE_RESULT_FIELDS = [
+    "result_type",
+    "unit_id",
+    "chunk_id",
+    "document_id",
+    "section_id",
+    "canonical_id",
+    "language",
+    "title",
+    "text",
+    "ordinal",
+    "source_url",
+    "score",
+]
 
 
 class ProjectAmberV2SourceReader:
@@ -42,7 +56,7 @@ class ProjectAmberV2SourceReader:
         mode: str = "unicode",
         include_textmap: bool = False,
     ) -> list[dict[str, Any]]:
-        return search_project_amber_v2(
+        rows = search_project_amber_v2(
             self.db_path,
             query,
             language=language,
@@ -51,6 +65,7 @@ class ProjectAmberV2SourceReader:
             mode=mode,
             include_textmap=include_textmap,
         )
+        return [normalize_source_result(row) for row in rows]
 
     def read_unit(self, unit_id: str) -> dict[str, Any] | None:
         with self._connect() as conn:
@@ -96,6 +111,7 @@ class ProjectAmberV2SourceReader:
             "title": center.get("title"),
             "document_title": center.get("title"),
             "section_id": center.get("section_id"),
+            "source_url": center.get("source_url"),
             "source_level": "L0",
             "next_actions": list(WINDOW_ACTIONS),
             "center_unit_id": unit_id,
@@ -115,32 +131,114 @@ class ProjectAmberV2SourceReader:
             raise ValueError("direction must be 'before' or 'after'")
         return self.read_window(unit_id, before=before, after=after)
 
-    def read_section(self, section_id: str, *, include_units: bool = True) -> dict[str, Any] | None:
+    def read_result_window(self, result: dict[str, Any], *, before: int = 3, after: int = 3) -> dict[str, Any]:
+        resolved = self.resolve_result_unit_id(result)
+        if not resolved["ok"]:
+            return resolved
+        unit_id = str(resolved["unit_id"])
+        window = self.read_window(unit_id, before=before, after=after)
+        if window is None:
+            return source_reader_error(
+                "source_reader_unit_not_found",
+                f"Readable unit was resolved but not found: {unit_id}",
+                result=result,
+                unit_id=unit_id,
+            )
+        return {"ok": True, "unit_id": unit_id, "window": window}
+
+    def resolve_result_unit_id(self, result: dict[str, Any]) -> dict[str, Any]:
+        normalized = normalize_source_result(result)
+        unit_id = normalized.get("unit_id") or normalized.get("chunk_id")
+        if unit_id:
+            return {"ok": True, "unit_id": str(unit_id), "source": "unit_id"}
+
+        document_id = normalized.get("document_id")
+        ordinal = normalized.get("ordinal")
+        if document_id is None or ordinal is None:
+            return source_reader_error(
+                "source_reader_mapping_missing",
+                "Search result does not include unit_id, chunk_id, or document_id + ordinal.",
+                result=normalized,
+            )
+        try:
+            ordinal_int = int(ordinal)
+        except (TypeError, ValueError):
+            return source_reader_error(
+                "source_reader_invalid_ordinal",
+                "Search result ordinal is not an integer.",
+                result=normalized,
+            )
+
         with self._connect() as conn:
             row = conn.execute(
                 """
-                SELECT *
-                FROM sections
-                WHERE section_id = ?
+                SELECT unit_id
+                FROM text_units
+                WHERE document_id = ? AND ordinal = ?
+                ORDER BY rowid
+                LIMIT 1
+                """,
+                (document_id, ordinal_int),
+            ).fetchone()
+        if row is None:
+            return source_reader_error(
+                "source_reader_mapping_not_found",
+                f"No readable unit exists for document_id={document_id!r} ordinal={ordinal_int}.",
+                result=normalized,
+            )
+        return {"ok": True, "unit_id": str(row["unit_id"]), "source": "document_id_ordinal"}
+
+    def read_section(
+        self,
+        section_id: str,
+        *,
+        include_units: bool = True,
+        max_units: int | None = None,
+    ) -> dict[str, Any] | None:
+        with self._connect() as conn:
+            row = conn.execute(
+                """
+                SELECT
+                    s.*,
+                    d.title AS document_title,
+                    d.document_kind AS document_kind,
+                    d.source_url AS source_url,
+                    d.officialness AS officialness
+                FROM sections s
+                JOIN documents d ON d.document_id = s.document_id
+                WHERE s.section_id = ?
                 """,
                 (section_id,),
             ).fetchone()
             if row is None:
                 return None
             section = decode_row(row)
+            unit_count = conn.execute(
+                """
+                SELECT COUNT(*)
+                FROM text_units
+                WHERE section_id = ?
+                """,
+                (section_id,),
+            ).fetchone()[0]
+            section["unit_count"] = int(unit_count)
             if include_units:
+                limit_sql = "" if max_units is None else "LIMIT ?"
+                params: tuple[Any, ...] = (section_id,) if max_units is None else (section_id, max_units)
                 section["units"] = [
                     decode_row(unit)
                     for unit in conn.execute(
-                        """
+                        f"""
                         SELECT *
                         FROM text_units
                         WHERE section_id = ?
                         ORDER BY ordinal, rowid
+                        {limit_sql}
                         """,
-                        (section_id,),
+                        params,
                     ).fetchall()
                 ]
+                section["included_unit_count"] = len(section["units"])
             return section
 
     def read_document(self, document_id: str, *, include_units: bool = True, max_units: int | None = None) -> dict[str, Any] | None:
@@ -169,6 +267,16 @@ class ProjectAmberV2SourceReader:
                 ).fetchall()
             ]
             document["sections"] = sections
+            document["section_count"] = len(sections)
+            unit_count = conn.execute(
+                """
+                SELECT COUNT(*)
+                FROM text_units
+                WHERE document_id = ?
+                """,
+                (document_id,),
+            ).fetchone()[0]
+            document["unit_count"] = int(unit_count)
             if include_units:
                 limit_sql = "" if max_units is None else "LIMIT ?"
                 params: tuple[Any, ...] = (document_id,) if max_units is None else (document_id, max_units)
@@ -185,6 +293,7 @@ class ProjectAmberV2SourceReader:
                         params,
                     ).fetchall()
                 ]
+                document["included_unit_count"] = len(document["units"])
             return document
 
     def read_parallel(self, unit_id: str, *, languages: list[str] | None = None) -> dict[str, Any] | None:
@@ -194,7 +303,7 @@ class ProjectAmberV2SourceReader:
         wanted = languages or ["ko", "en", "ja", "zh-Hans"]
         placeholders = ",".join("?" for _ in wanted)
         with self._connect() as conn:
-            rows = [
+            candidate_rows = [
                 decode_row(row)
                 for row in conn.execute(
                     f"""
@@ -209,14 +318,83 @@ class ProjectAmberV2SourceReader:
                     (center["canonical_id"], center["document_kind"], center["ordinal"], *wanted),
                 ).fetchall()
             ]
-        rows = [row for row in rows if same_parallel_scope(center, row)]
+            document_ids = sorted({str(center["document_id"])} | {str(row["document_id"]) for row in candidate_rows})
+            doc_placeholders = ",".join("?" for _ in document_ids)
+            unit_counts = {
+                str(row["document_id"]): int(row["unit_count"])
+                for row in conn.execute(
+                    f"""
+                    SELECT document_id, COUNT(*) AS unit_count
+                    FROM text_units
+                    WHERE document_id IN ({doc_placeholders})
+                    GROUP BY document_id
+                    """,
+                    tuple(document_ids),
+                ).fetchall()
+            }
+        center_unit_count = unit_counts.get(str(center["document_id"]))
+        rows = []
+        excluded_languages: dict[str, str] = {}
+        for row in candidate_rows:
+            language = str(row.get("language") or "")
+            if not same_parallel_scope(center, row):
+                excluded_languages.setdefault(language, "metadata_scope_mismatch")
+                continue
+            candidate_unit_count = unit_counts.get(str(row.get("document_id")))
+            if candidate_unit_count != center_unit_count:
+                excluded_languages.setdefault(language, "unit_count_mismatch")
+                continue
+            rows.append(row)
+        by_language: dict[str, dict[str, Any]] = {}
+        for row in rows:
+            language = str(row.get("language") or "")
+            if language and language not in by_language:
+                by_language[language] = row
+        blocks = []
+        ordered_units = []
+        for language in wanted:
+            unit = by_language.get(language)
+            if unit is None:
+                blocks.append(
+                    {
+                        "language": language,
+                        "found": False,
+                        "reason": excluded_languages.get(language, "not_found"),
+                        "unit": None,
+                        "unit_id": None,
+                        "text": None,
+                    }
+                )
+                continue
+            ordered_units.append(unit)
+            blocks.append(
+                {
+                    "language": language,
+                    "found": True,
+                    "unit_id": unit.get("unit_id"),
+                    "document_id": unit.get("document_id"),
+                    "section_id": unit.get("section_id"),
+                    "title": unit.get("title"),
+                    "ordinal": unit.get("ordinal"),
+                    "source_url": unit.get("source_url"),
+                    "text": unit.get("text"),
+                    "unit": unit,
+                }
+            )
         return {
             "unit_id": unit_id,
             "canonical_id": center.get("canonical_id"),
             "document_kind": center.get("document_kind"),
             "ordinal": center.get("ordinal"),
             "languages": wanted,
-            "units": rows,
+            "alignment": {
+                "strategy": "document_kind_ordinal",
+                "requires_equal_unit_count": True,
+                "center_unit_count": center_unit_count,
+            },
+            "blocks": blocks,
+            "missing_languages": [block["language"] for block in blocks if not block["found"]],
+            "units": ordered_units,
         }
 
     def pin_evidence(
@@ -299,6 +477,38 @@ def decode_row(row: sqlite3.Row | dict[str, Any]) -> dict[str, Any]:
             data[output_key] = None
         del data[key]
     return data
+
+
+def normalize_source_result(row: dict[str, Any]) -> dict[str, Any]:
+    result = dict(row)
+    result.setdefault("result_type", "text_unit" if result.get("unit_id") else result.get("result_type"))
+    unit_id = result.get("unit_id") or result.get("chunk_id")
+    if unit_id:
+        result["unit_id"] = str(unit_id)
+        result.setdefault("chunk_id", str(unit_id))
+    elif "chunk_id" not in result:
+        result["chunk_id"] = None
+    for field in SOURCE_RESULT_FIELDS:
+        result.setdefault(field, None)
+    rank = result.get("rank")
+    if result.get("score") is None and isinstance(rank, (int, float)):
+        result["score"] = round(-float(rank), 6)
+    return result
+
+
+def source_reader_error(
+    code: str,
+    message: str,
+    *,
+    result: dict[str, Any] | None = None,
+    unit_id: str | None = None,
+) -> dict[str, Any]:
+    error: dict[str, Any] = {"code": code, "message": message}
+    if unit_id is not None:
+        error["unit_id"] = unit_id
+    if result is not None:
+        error["result"] = {field: result.get(field) for field in SOURCE_RESULT_FIELDS if field in result}
+    return {"ok": False, "error": error}
 
 
 def parse_window_id(window_id: str) -> tuple[str, int, int]:

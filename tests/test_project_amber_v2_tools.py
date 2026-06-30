@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import importlib.util
+import os
 import sqlite3
 import subprocess
 import sys
@@ -23,8 +24,8 @@ def test_project_amber_v2_audit_passes_on_consistent_fixture(tmp_path: Path) -> 
     report = audit_project_amber_v2(tmp_path, canonical_root=canonical_root, search_db=db_path)
 
     assert report["ok"] is True
-    assert report["jsonl"]["counts"]["text_units"] == 5
-    assert report["sqlite"]["table_counts"]["text_units"] == 5
+    assert report["jsonl"]["counts"]["text_units"] == 8
+    assert report["sqlite"]["table_counts"]["text_units"] == 8
     assert report["sqlite"]["integrity_check"] == "ok"
 
 
@@ -67,6 +68,27 @@ def test_source_reader_reads_unit_window_document_and_parallel(tmp_path: Path) -
     assert len(document["units"]) == 4
     assert parallel is not None
     assert {row["language"] for row in parallel["units"]} == {"en", "ko"}
+
+
+def test_source_reader_limits_sections_and_reports_parallel_missing_languages(tmp_path: Path) -> None:
+    _, db_path = build_tiny_v2_fixture(tmp_path)
+    reader = ProjectAmberV2SourceReader(db_path)
+
+    section = reader.read_section("project_amber:quest:1:ko:detail:section:0", max_units=2)
+    parallel = reader.read_parallel("project_amber:quest:1:ko:detail:unit:0", languages=["ko", "en", "ja"])
+
+    assert section is not None
+    assert section["unit_count"] == 4
+    assert section["included_unit_count"] == 2
+    assert [row["unit_id"] for row in section["units"]] == [
+        "project_amber:quest:1:ko:detail:unit:0",
+        "project_amber:quest:1:ko:detail:unit:1",
+    ]
+    assert parallel is not None
+    assert [block["language"] for block in parallel["blocks"]] == ["ko", "en", "ja"]
+    assert [block["found"] for block in parallel["blocks"]] == [True, True, False]
+    assert parallel["missing_languages"] == ["ja"]
+    assert [row["language"] for row in parallel["units"]] == ["ko", "en"]
 
 
 def test_source_reader_expands_window_without_crossing_document_boundary(tmp_path: Path) -> None:
@@ -280,6 +302,50 @@ def test_project_amber_v2_search_engine_returns_v2_shape(tmp_path: Path) -> None
     assert result["results"][0]["score"] > 0
 
 
+def test_project_amber_v2_search_results_are_source_readable(tmp_path: Path) -> None:
+    _, db_path = build_tiny_v2_fixture(tmp_path)
+    engine = ProjectAmberV2SearchEngine(db_path)
+    reader = ProjectAmberV2SourceReader(db_path)
+
+    result = engine.search("Irminsul", language="en", content_type="quest", limit=1)
+    hit = result["results"][0]
+    window_result = reader.read_result_window(hit, before=0, after=0)
+    missing_result = reader.read_result_window({"result_type": "textmap", "textmap_id": "1", "text": "Irminsul"})
+
+    assert {
+        "result_type",
+        "unit_id",
+        "chunk_id",
+        "document_id",
+        "section_id",
+        "canonical_id",
+        "language",
+        "title",
+        "text",
+        "ordinal",
+        "source_url",
+        "score",
+    }.issubset(hit)
+    assert hit["chunk_id"] == hit["unit_id"]
+    assert hit["section_id"] == "project_amber:quest:1:en:detail:section:0"
+    assert window_result["ok"] is True
+    assert window_result["window"]["center_unit_id"] == hit["unit_id"]
+    assert missing_result["ok"] is False
+    assert missing_result["error"]["code"] == "source_reader_mapping_missing"
+
+
+def test_project_amber_v2_search_with_window_attaches_source_context(tmp_path: Path) -> None:
+    _, db_path = build_tiny_v2_fixture(tmp_path)
+    engine = ProjectAmberV2SearchEngine(db_path)
+
+    result = engine.search("Irminsul", language="en", content_type="quest", limit=1, with_window=True)
+
+    hit = result["results"][0]
+    assert hit["source_reader"]["unit_id"] == "project_amber:quest:1:en:detail:unit:0"
+    assert hit["source_window"]["center"]["text"] == "Irminsul"
+    assert hit["source_window"]["window_id"] == "project_amber:quest:1:en:detail:unit:0:window:3:3"
+
+
 def test_project_amber_v2_investigate_preserves_unit_id_in_evidence_pack(tmp_path: Path) -> None:
     _, db_path = build_tiny_v2_fixture(tmp_path)
     engine = ProjectAmberV2SearchEngine(db_path)
@@ -412,6 +478,108 @@ def test_lore_search_engine_cli_selects_legacy_v1(monkeypatch: pytest.MonkeyPatc
     assert cli.open_developer_search_engine(Path("."), "v1", "legacy.sqlite3") is sentinel
 
 
+def test_package_cli_source_reader_workflow(tmp_path: Path) -> None:
+    _, db_path = build_tiny_v2_fixture(tmp_path)
+    base = [sys.executable, "-m", "genshin_lore_db", "--root", str(db_path)]
+    env = module_subprocess_env()
+
+    window = subprocess.run(
+        [
+            *base,
+            "read-window",
+            "project_amber:quest:1:ko:detail:unit:1",
+            "--before",
+            "1",
+            "--after",
+            "0",
+            "--json",
+        ],
+        capture_output=True,
+        encoding="utf-8",
+        check=False,
+        env=env,
+    )
+    assert window.returncode == 0, window.stderr
+    window_output = json.loads(window.stdout)
+    assert window_output["center_unit_id"] == "project_amber:quest:1:ko:detail:unit:1"
+    assert [row["unit_id"] for row in window_output["before"]] == ["project_amber:quest:1:ko:detail:unit:0"]
+
+    missing = subprocess.run(
+        [*base, "read-window", "missing-unit", "--json"],
+        capture_output=True,
+        encoding="utf-8",
+        check=False,
+        env=env,
+    )
+    assert missing.returncode == 2
+    assert json.loads(missing.stdout)["error"]["code"] == "unit_not_found"
+
+    document = subprocess.run(
+        [*base, "read-document", "project_amber:quest:1:ko:detail", "--max-units", "2", "--json"],
+        capture_output=True,
+        encoding="utf-8",
+        check=False,
+        env=env,
+    )
+    assert document.returncode == 0, document.stderr
+    document_output = json.loads(document.stdout)
+    assert document_output["unit_count"] == 4
+    assert len(document_output["units"]) == 2
+
+    section = subprocess.run(
+        [*base, "read-section", "project_amber:quest:1:ko:detail:section:0", "--no-units", "--json"],
+        capture_output=True,
+        encoding="utf-8",
+        check=False,
+        env=env,
+    )
+    assert section.returncode == 0, section.stderr
+    section_output = json.loads(section.stdout)
+    assert section_output["unit_count"] == 4
+    assert "units" not in section_output
+
+    parallel = subprocess.run(
+        [
+            *base,
+            "read-parallel",
+            "project_amber:quest:1:ko:detail:unit:0",
+            "--languages",
+            "ko,en,ja",
+            "--json",
+        ],
+        capture_output=True,
+        encoding="utf-8",
+        check=False,
+        env=env,
+    )
+    assert parallel.returncode == 0, parallel.stderr
+    parallel_output = json.loads(parallel.stdout)
+    assert [block["found"] for block in parallel_output["blocks"]] == [True, True, False]
+
+    search = subprocess.run(
+        [
+            *base,
+            "search",
+            "Irminsul",
+            "--language",
+            "en",
+            "--content-type",
+            "quest",
+            "--limit",
+            "1",
+            "--with-window",
+            "--json",
+        ],
+        capture_output=True,
+        encoding="utf-8",
+        check=False,
+        env=env,
+    )
+    assert search.returncode == 0, search.stderr
+    search_output = json.loads(search.stdout)
+    assert search_output["results"][0]["source_window"]["center_unit_id"] == "project_amber:quest:1:en:detail:unit:0"
+
+
 def load_lore_search_engine_cli_module():
     script = Path(__file__).resolve().parents[1] / "scripts" / "lore_search_engine.py"
     spec = importlib.util.spec_from_file_location("lore_search_engine_cli_for_test", script)
@@ -420,6 +588,14 @@ def load_lore_search_engine_cli_module():
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+def module_subprocess_env() -> dict[str, str]:
+    env = os.environ.copy()
+    src = str(Path(__file__).resolve().parents[1] / "src")
+    existing = env.get("PYTHONPATH")
+    env["PYTHONPATH"] = src if not existing else os.pathsep.join([src, existing])
+    return env
 
 
 def build_tiny_v2_fixture(tmp_path: Path) -> tuple[Path, Path]:
@@ -494,6 +670,30 @@ def build_tiny_v2_fixture(tmp_path: Path) -> tuple[Path, Path]:
             "en",
             0,
             "Irminsul",
+        ),
+        unit_row(
+            "project_amber:quest:1:en:detail:unit:1",
+            "project_amber:quest:1:en:detail",
+            "project_amber:quest:1:en:detail:section:0",
+            "en",
+            1,
+            "Irminsul records memories.",
+        ),
+        unit_row(
+            "project_amber:quest:1:en:detail:unit:2",
+            "project_amber:quest:1:en:detail",
+            "project_amber:quest:1:en:detail:section:0",
+            "en",
+            2,
+            "Memories remain as stories.",
+        ),
+        unit_row(
+            "project_amber:quest:1:en:detail:unit:3",
+            "project_amber:quest:1:en:detail",
+            "project_amber:quest:1:en:detail:section:0",
+            "en",
+            3,
+            "Travelers follow those records.",
         ),
     ]
     relations = [

@@ -1488,6 +1488,7 @@ def search_project_amber_v2(
             u.unit_id AS id,
             u.unit_id,
             u.document_id,
+            u.section_id,
             u.canonical_id,
             u.language,
             u.language_label,

@@ -4,7 +4,7 @@
 
 목표는 단순한 검색 챗봇이 아닙니다. Project Amber 전체 덤프와 다국어 TextMap을 정규화하고, 한중일영 공식 텍스트를 함께 탐색하면서 인물, 장소, 개념, 모티프, 번역 차이, 반례 후보를 연결하는 연구용 기반 시스템을 만드는 것입니다.
 
-현재 작업 상태는 **v0.6.4 QA 코어 안정화 완료 단계**입니다. 데이터 수집과 정규화, Project Amber v2 SQLite 검색 DB, 기본 Query Router, Evidence Pack v0.5, 정답형 QA, 로컬 Ollama Qwen3 재작성, 검색/정답 평가셋이 구축되어 있습니다. `answer`/`chat`은 Project Amber v2 기반 정답형 QA를 사용하고, `search`/`investigate`도 기본값이 v2입니다. v1 검색엔진은 `--db-version v1`로 유지합니다. 벡터 검색, 모티프 인덱스, 그래프 검색, 워크스페이스 메모리, full Source Reader 답변 통합은 아직 개발 전입니다.
+현재 작업 상태는 **v0.7 Source Reader 운영화 완료 단계**입니다. 데이터 수집과 정규화, Project Amber v2 SQLite 검색 DB, 기본 Query Router, Evidence Pack v0.5, 정답형 QA, 로컬 Ollama Qwen3 재작성, 검색/정답 평가셋, Source Reader CLI가 구축되어 있습니다. `answer`/`chat`은 Project Amber v2 기반 정답형 QA를 사용하고, `search`/`investigate`도 기본값이 v2입니다. v1 검색엔진은 `--db-version v1`로 유지합니다. 벡터 검색, 모티프 인덱스, 그래프 검색, 워크스페이스 메모리, full Source Reader 답변 통합은 아직 개발 전입니다.
 
 ## 문서
 
@@ -39,7 +39,7 @@
 - 로컬 Ollama Qwen3 기반 정답형 QA 재작성과 fallback
 - QA 터미널 시작 시 Ollama API 확인, 가능한 경우 자동 시작, 모델 누락/서버 실패 경고 표시
 - `search` / `investigate` / `search_lore.py` 기본 Project Amber v2 검색 사용
-- Source Reader v0 primitives: `read_unit`, `read_window`, `read_document`, `read_parallel`, evidence pin
+- Source Reader v0.7 developer workflow: `read-window`, `read-document`, `read-section`, `read-parallel`, `search --with-window`, evidence pin primitives
 
 현재 생성된 주요 데이터 규모는 다음과 같습니다.
 
@@ -65,6 +65,16 @@ python scripts/lore_chat.py
 python scripts/eval_search_engine.py
 python scripts/eval_search_engine.py --db-version v1
 python scripts/eval_answer_engine.py --fail-under
+```
+
+Source Reader는 Project Amber v2 검색 결과의 `unit_id`에서 바로 원문 window/document/section/parallel text를 열 수 있습니다.
+
+```powershell
+python -m genshin_lore_db search "천리" --limit 5 --with-window
+python -m genshin_lore_db read-window <unit_id> --before 5 --after 5
+python -m genshin_lore_db read-document <document_id> --max-units 100
+python -m genshin_lore_db read-section <section_id> --no-units
+python -m genshin_lore_db read-parallel <unit_id> --languages ko,en,ja,zh-Hans
 ```
 
 Project Amber v2 DB를 만든 뒤 text unit 단위 검색을 확인할 수 있습니다.

@@ -2,7 +2,7 @@
 
 이 문서는 현재 코드, 데이터 산출물, 문서, 테스트의 기준 배치를 정리합니다. 기준은 `PROJECT_VISION`, `ARCHITECTURE`, `DATA_PIPELINE`, `SEARCH_ENGINE`, `ANSWER_ROUTING_DESIGN`, `ROADMAP`, `docs/research/*`의 현재 결론입니다.
 
-현재 단계는 **v0.6.x basic_lookup 안정화**입니다. 웹 UI, API 서버, tool-calling agent, Conversation Orchestrator는 아직 구현 단계가 아닙니다.
+현재 단계는 **v0.7 Source Reader 운영화**입니다. 웹 UI, API 서버, tool-calling agent, Conversation Orchestrator는 아직 구현 단계가 아닙니다.
 
 ## 최상위 구조
 
@@ -228,12 +228,11 @@ docs/research/RESEARCH_AGENT_DISCUSSION_EVALUATION.md
 현재 구현 단계:
 
 ```text
-v0.6.x
-- Project Amber v2 안정화
-- basic_lookup 정답형 QA 안정화
-- facts extractor 확장
-- route별 validator 강화
-- template fallback 안정화
+v0.7
+- Project Amber v2 검색 결과 Source Reader ID 표준화
+- read-window/read-document/read-section/read-parallel CLI
+- search --with-window 개발자 워크플로우
+- basic_lookup 정답형 QA 안정화 유지
 - 평가셋 확대
 ```
 

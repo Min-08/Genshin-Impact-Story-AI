@@ -8,6 +8,7 @@ from genshin_lore_db.normalize import clean_text
 from genshin_lore_db.pipeline.project_amber_v2 import search_project_amber_v2
 from genshin_lore_db.search_engine.evidence import build_evidence_pack, quality_summary
 from genshin_lore_db.search_engine.router import route_query
+from genshin_lore_db.search_engine.source_reader import ProjectAmberV2SourceReader, normalize_source_result
 
 
 DEFAULT_V2_SEARCH_DB = Path("data") / "processed" / "search_v2" / "project_amber_search.sqlite3"
@@ -42,6 +43,9 @@ class ProjectAmberV2SearchEngine:
         content_type: str | None = None,
         include_textmap: bool = False,
         mode: str = "unicode",
+        with_window: bool = False,
+        window_before: int = 3,
+        window_after: int = 3,
     ) -> dict[str, Any]:
         route = route_query(query).to_dict()
         expansion = build_v2_expansion(query)
@@ -54,6 +58,8 @@ class ProjectAmberV2SearchEngine:
             mode=mode,
             expansion=expansion,
         )
+        if with_window:
+            attach_source_windows(hits, self.search_db, before=window_before, after=window_after)
         result = {
             "query": query,
             "mode": "search",
@@ -181,7 +187,22 @@ def normalize_v2_hit(row: dict[str, Any], *, expansion: dict[str, Any]) -> dict[
         hit["category"] = "Project Amber v2"
     elif hit.get("result_type") == "textmap":
         hit["category"] = "TextMap"
-    return hit
+    return normalize_source_result(hit)
+
+
+def attach_source_windows(hits: list[dict[str, Any]], search_db: Path, *, before: int = 3, after: int = 3) -> None:
+    reader = ProjectAmberV2SourceReader(search_db)
+    for hit in hits:
+        resolved = reader.read_result_window(hit, before=before, after=after)
+        if resolved["ok"]:
+            hit["source_reader"] = {
+                "unit_id": resolved["unit_id"],
+                "window_id": resolved["window"]["window_id"],
+            }
+            hit["source_window"] = resolved["window"]
+        else:
+            hit["source_reader"] = resolved["error"]
+            hit["source_window"] = None
 
 
 def matched_v2_terms(hit: dict[str, Any], expansion: dict[str, Any]) -> list[dict[str, Any]]:

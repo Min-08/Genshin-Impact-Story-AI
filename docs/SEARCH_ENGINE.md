@@ -197,6 +197,21 @@ Query Router는 기본 휴리스틱만 있음
 
 따라서 현재 검색엔진은 `오프라인 검색 MVP + 하이브리드 검색 초안`으로 보는 것이 맞습니다.
 
+## Source Reader CLI
+
+v0.7부터 Project Amber v2 검색 결과는 Source Reader에서 바로 열 수 있는 `unit_id`, `chunk_id`, `document_id`, `section_id`, `canonical_id`, `language`, `title`, `text`, `ordinal`, `source_url`, `score` 필드를 가능한 범위에서 포함합니다. `text_unit` 결과는 별도 DB 조회 없이 `unit_id`를 `read-window`에 넘길 수 있습니다.
+
+```powershell
+python -m genshin_lore_db search "천리" --limit 5 --with-window
+python -m genshin_lore_db search "천리" --limit 5 --with-window --json
+python -m genshin_lore_db read-window <unit_id> --before 5 --after 5
+python -m genshin_lore_db read-document <document_id> --max-units 100
+python -m genshin_lore_db read-section <section_id> --no-units
+python -m genshin_lore_db read-parallel <unit_id> --languages ko,en,ja,zh-Hans
+```
+
+`read-document`와 `read-section`은 기본적으로 최대 100개 unit만 출력하며, 전체 개수는 `unit_count`/`section_count` metadata로 유지합니다. `read-parallel`은 요청한 언어 순서를 유지하고 누락 언어를 `(missing)` 또는 JSON `found=false`로 표시합니다.
+
 ## 다음 강화 방향
 
 1. 검색 평가셋 확대
