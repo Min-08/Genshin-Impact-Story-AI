@@ -14,6 +14,7 @@ from genshin_lore_db.io import stable_json_dumps
 from genshin_lore_db.pipeline.project_amber_v2 import create_v2_schema, populate_v2_fts
 from genshin_lore_db.pipeline.project_amber_v2_audit import audit_project_amber_v2
 from genshin_lore_db.pipeline.project_amber_v2_evaluation import evaluate_project_amber_v2_search
+from genshin_lore_db.search_engine.evidence_store import EvidenceStore
 from genshin_lore_db.search_engine.source_reader import ProjectAmberV2SourceReader
 from genshin_lore_db.search_engine.v2_engine import ProjectAmberV2SearchEngine
 
@@ -189,6 +190,36 @@ def test_source_reader_rejects_invalid_evidence_pins(tmp_path: Path) -> None:
         reader.pin_unit_evidence("project_amber:quest:1:ko:detail:unit:1", 0, 2, role="supports", source_level="official")
 
 
+def test_evidence_store_saves_lists_shows_and_dedupes(tmp_path: Path) -> None:
+    _, db_path = build_tiny_v2_fixture(tmp_path)
+    reader = ProjectAmberV2SourceReader(db_path)
+    store = EvidenceStore.open(db_path, workspace_id="default")
+    evidence = reader.pin_unit_evidence(
+        "project_amber:quest:1:ko:detail:unit:1",
+        0,
+        3,
+        role="supports",
+        note="Irminsul source",
+    )
+
+    assert evidence is not None
+    saved = store.append(evidence, created_at="2026-06-30T00:00:00+00:00")
+    duplicate = store.append(evidence, created_at="2026-07-01T00:00:00+00:00")
+    rows = store.list()
+
+    assert saved["created"] is True
+    assert duplicate["created"] is False
+    assert store.path == tmp_path / "data" / "workspaces" / "default" / "evidence_pins.jsonl"
+    assert len(rows) == 1
+    assert rows[0]["workspace_id"] == "default"
+    assert rows[0]["created_at"] == "2026-06-30T00:00:00+00:00"
+    assert rows[0]["source_url"] is None
+    assert store.get(rows[0]["evidence_id"]) == rows[0]
+    assert store.list(role="supports") == rows
+    assert store.list(query="Irminsul") == rows
+    assert EvidenceStore.open(db_path, workspace_id="lab").list() == []
+
+
 def test_read_source_cli_expands_pins_and_preserves_missing_exit_code(tmp_path: Path) -> None:
     _, db_path = build_tiny_v2_fixture(tmp_path)
     script = Path(__file__).resolve().parents[1] / "scripts" / "read_source.py"
@@ -355,6 +386,33 @@ def test_project_amber_v2_investigate_preserves_unit_id_in_evidence_pack(tmp_pat
     assert result["engine"]["db_version"] == "v2"
     assert result["evidence_pack"]["sources"][0]["unit_id"] == "project_amber:quest:1:en:detail:unit:0"
     assert result["evidence_pack"]["groups"][0]["support_type"] == "direct"
+
+
+def test_project_amber_v2_investigate_returns_candidate_and_pinned_evidence(tmp_path: Path) -> None:
+    _, db_path = build_tiny_v2_fixture(tmp_path)
+    reader = ProjectAmberV2SourceReader(db_path)
+    store = EvidenceStore.open(db_path)
+    evidence = reader.pin_unit_evidence(
+        "project_amber:quest:1:ko:detail:unit:1",
+        0,
+        3,
+        role="supports",
+        note="Irminsul source",
+    )
+    assert evidence is not None
+    saved = store.append(evidence)
+    engine = ProjectAmberV2SearchEngine(db_path)
+
+    result = engine.investigate("Irminsul", language="en", content_type="quest", limit=1, include_textmap=False)
+
+    assert result["candidate_evidence"][0]["unit_id"] == "project_amber:quest:1:en:detail:unit:0"
+    assert result["candidate_evidence"][0]["document_id"] == "project_amber:quest:1:en:detail"
+    assert result["candidate_evidence"][0]["suggested_role"] == "context"
+    assert result["candidate_evidence"][0]["confirmed"] is False
+    assert result["counter_candidates"] == []
+    assert result["translation_note_candidates"] == []
+    assert result["pinned_evidence"][0]["evidence_id"] == saved["record"]["evidence_id"]
+    assert result["evidence_store"]["workspace_id"] == "default"
 
 
 def test_project_amber_v2_search_engine_warns_when_category_is_ignored(tmp_path: Path) -> None:
@@ -578,6 +636,110 @@ def test_package_cli_source_reader_workflow(tmp_path: Path) -> None:
     assert search.returncode == 0, search.stderr
     search_output = json.loads(search.stdout)
     assert search_output["results"][0]["source_window"]["center_unit_id"] == "project_amber:quest:1:en:detail:unit:0"
+
+
+def test_package_cli_pins_and_browses_evidence(tmp_path: Path) -> None:
+    _, db_path = build_tiny_v2_fixture(tmp_path)
+    base = [sys.executable, "-m", "genshin_lore_db", "--root", str(db_path)]
+    env = module_subprocess_env()
+
+    pin = subprocess.run(
+        [
+            *base,
+            "pin-evidence",
+            "--unit-id",
+            "project_amber:quest:1:ko:detail:unit:1",
+            "--start",
+            "0",
+            "--end",
+            "3",
+            "--role",
+            "supports",
+            "--note",
+            "Irminsul source",
+            "--json",
+        ],
+        capture_output=True,
+        encoding="utf-8",
+        check=False,
+        env=env,
+    )
+    assert pin.returncode == 0, pin.stderr
+    pin_output = json.loads(pin.stdout)
+    assert pin_output["created"] is True
+    assert pin_output["evidence"]["workspace_id"] == "default"
+    assert pin_output["evidence"]["excerpt"] == "세계수"
+
+    duplicate = subprocess.run(
+        [
+            *base,
+            "pin-evidence",
+            "--unit-id",
+            "project_amber:quest:1:ko:detail:unit:1",
+            "--start",
+            "0",
+            "--end",
+            "3",
+            "--role",
+            "supports",
+            "--note",
+            "Irminsul source",
+            "--json",
+        ],
+        capture_output=True,
+        encoding="utf-8",
+        check=False,
+        env=env,
+    )
+    assert duplicate.returncode == 0, duplicate.stderr
+    assert json.loads(duplicate.stdout)["created"] is False
+
+    evidence_id = pin_output["evidence_id"]
+    listed = subprocess.run(
+        [*base, "evidence", "list", "--role", "supports", "--query", "Irminsul", "--json"],
+        capture_output=True,
+        encoding="utf-8",
+        check=False,
+        env=env,
+    )
+    assert listed.returncode == 0, listed.stderr
+    listed_output = json.loads(listed.stdout)
+    assert listed_output["count"] == 1
+    assert listed_output["evidence"][0]["evidence_id"] == evidence_id
+
+    shown = subprocess.run(
+        [*base, "evidence", "show", evidence_id, "--json"],
+        capture_output=True,
+        encoding="utf-8",
+        check=False,
+        env=env,
+    )
+    assert shown.returncode == 0, shown.stderr
+    assert json.loads(shown.stdout)["evidence_id"] == evidence_id
+
+    invalid = subprocess.run(
+        [
+            *base,
+            "pin-evidence",
+            "--unit-id",
+            "project_amber:quest:1:ko:detail:unit:1",
+            "--start",
+            "0",
+            "--end",
+            "3",
+            "--role",
+            "unknown",
+            "--json",
+        ],
+        capture_output=True,
+        encoding="utf-8",
+        check=False,
+        env=env,
+    )
+    assert invalid.returncode == 2
+    invalid_output = json.loads(invalid.stdout)
+    assert invalid_output["error"]["code"] == "command_failed"
+    assert "role must be one of" in invalid_output["error"]["message"]
 
 
 def load_lore_search_engine_cli_module():

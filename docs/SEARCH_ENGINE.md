@@ -2,7 +2,7 @@
 
 현재 검색엔진은 웹 UI가 아니라 개발자용 코어입니다. 목표는 사용자의 자연어 질문을 공식 텍스트 탐색용 질의로 확장하고, 결과를 Evidence Pack으로 묶어 LLM 또는 사람이 검토할 수 있게 만드는 것입니다.
 
-현재 검색엔진 버전은 **v0.5**이고, Evidence Pack 스키마는 `evidence_pack.v0.5`입니다.
+현재 검색엔진 단계는 **v0.8**이고, Evidence Pack 스키마는 `evidence_pack.v0.5`를 유지하면서 v0.8 candidate/pinned evidence 필드를 `investigate` 결과에 추가합니다.
 
 ## CLI
 
@@ -12,6 +12,7 @@ python scripts/lore_search_engine.py search "천리" --limit 5
 python scripts/lore_search_engine.py search "Khaenri'ah" --limit 5
 python scripts/lore_search_engine.py search "Khaenri'ah" --db-version v1 --limit 5
 python scripts/lore_search_engine.py investigate "페이몬의 정체와 천리 관련 근거" --limit 12
+python scripts/lore_search_engine.py investigate "천리" --workspace default --limit 12
 python scripts/lore_search_engine.py answer "절연의 기치 효과 알려줘" --no-llm --text
 python scripts/lore_chat.py
 python scripts/eval_answer_engine.py --fail-under
@@ -211,6 +212,21 @@ python -m genshin_lore_db read-parallel <unit_id> --languages ko,en,ja,zh-Hans
 ```
 
 `read-document`와 `read-section`은 기본적으로 최대 100개 unit만 출력하며, 전체 개수는 `unit_count`/`section_count` metadata로 유지합니다. `read-parallel`은 요청한 언어 순서를 유지하고 누락 언어를 `(missing)` 또는 JSON `found=false`로 표시합니다.
+
+## Evidence Pin CLI
+
+v0.8부터 Source Reader로 확인한 unit span을 JSONL evidence store에 저장할 수 있습니다. 기본 저장 위치는 `data/workspaces/default/evidence_pins.jsonl`입니다.
+
+```powershell
+python -m genshin_lore_db pin-evidence --unit-id <unit_id> --start 0 --end 42 --role supports --note "source note"
+python -m genshin_lore_db pin-evidence --unit-id <unit_id> --start 0 --end 42 --role counter --json
+python -m genshin_lore_db evidence list
+python -m genshin_lore_db evidence list --role counter
+python -m genshin_lore_db evidence list --query "셀레스티아"
+python -m genshin_lore_db evidence show E-xxxxxxxxxxxx --json
+```
+
+같은 span/role/source_level/hypothesis 조합은 같은 `evidence_id`를 가지므로 중복 저장되지 않습니다. `investigate()`는 수동 저장 전 선택 후보인 `candidate_evidence`와 같은 workspace에서 조회된 `pinned_evidence`, `counter_candidates`, `translation_note_candidates`를 함께 반환합니다.
 
 ## 다음 강화 방향
 

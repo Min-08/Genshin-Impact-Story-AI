@@ -61,6 +61,7 @@ def main() -> int:
         sub.add_argument("--content-type", help="예: quest, book, avatar")
         sub.add_argument("--mode", choices=["unicode", "trigram"], default="unicode")
         sub.add_argument("--include-textmap", action="store_true", default=command == "investigate")
+        sub.add_argument("--workspace", default="default", help="Evidence workspace id for v2 investigate")
         sub.add_argument("--out", help="JSON 결과를 저장할 경로")
         sub.add_argument("--prompt-out", help="investigate 결과에서 LLM 프롬프트 패키지를 저장할 경로")
 
@@ -107,6 +108,7 @@ def main() -> int:
         }
         if args.db_version == "v2":
             investigate_kwargs["mode"] = args.mode
+            investigate_kwargs["workspace_id"] = args.workspace
         result = engine.investigate(args.query, **investigate_kwargs)
         if args.prompt_out:
             write_json(Path(args.prompt_out), build_reasoning_prompt(result))

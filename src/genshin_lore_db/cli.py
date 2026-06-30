@@ -11,7 +11,8 @@ from .normalize import build_canonical
 from .pipeline.project_amber_v2 import build_project_amber_v2
 from .project_amber import crawl_project_amber
 from .project_amber_deep import crawl_project_amber_deep
-from .search_engine.source_reader import ProjectAmberV2SourceReader
+from .search_engine.evidence_store import DEFAULT_WORKSPACE_ID, EvidenceStore
+from .search_engine.source_reader import EVIDENCE_ROLES, SOURCE_LEVELS, ProjectAmberV2SourceReader
 from .search_engine.v2_engine import ProjectAmberV2SearchEngine
 
 
@@ -34,6 +35,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             return run_pipeline_command(args, root)
         if args.command == "search":
             return run_search_command(args, root)
+        if args.command == "pin-evidence":
+            return run_pin_evidence_command(args, root)
+        if args.command == "evidence":
+            return run_evidence_command(args, root)
         return run_source_reader_command(args, root)
     except (FileNotFoundError, IsADirectoryError, ValueError) as exc:
         return emit_error("command_failed", str(exc), json_output=bool(getattr(args, "json", False)))
@@ -112,6 +117,29 @@ def build_parser() -> argparse.ArgumentParser:
     parallel.add_argument("--languages", default="ko,en,ja,zh-Hans")
     parallel.add_argument("--json", action="store_true")
 
+    pin = subparsers.add_parser("pin-evidence", help="Pin a unit character span into the evidence store")
+    pin.add_argument("--unit-id", required=True)
+    pin.add_argument("--start", type=non_negative_int, required=True)
+    pin.add_argument("--end", type=non_negative_int, required=True)
+    pin.add_argument("--role", required=True, help=f"One of: {', '.join(sorted(EVIDENCE_ROLES))}")
+    pin.add_argument("--source-level", default="L0", help=f"One of: {', '.join(sorted(SOURCE_LEVELS))}")
+    pin.add_argument("--note")
+    pin.add_argument("--hypothesis-id", dest="hypothesis_ids", action="append", default=[])
+    pin.add_argument("--workspace", default=DEFAULT_WORKSPACE_ID)
+    pin.add_argument("--json", action="store_true")
+
+    evidence = subparsers.add_parser("evidence", help="Browse saved evidence pins")
+    evidence_subparsers = evidence.add_subparsers(dest="evidence_command", required=True)
+    evidence_list = evidence_subparsers.add_parser("list", help="List evidence pins")
+    evidence_list.add_argument("--workspace", default=DEFAULT_WORKSPACE_ID)
+    evidence_list.add_argument("--role", help="Filter by evidence role")
+    evidence_list.add_argument("--query", help="Filter by text, title, note, or ids")
+    evidence_list.add_argument("--json", action="store_true")
+    evidence_show = evidence_subparsers.add_parser("show", help="Show one evidence pin")
+    evidence_show.add_argument("evidence_id")
+    evidence_show.add_argument("--workspace", default=DEFAULT_WORKSPACE_ID)
+    evidence_show.add_argument("--json", action="store_true")
+
     return parser
 
 
@@ -175,6 +203,73 @@ def run_search_command(args: argparse.Namespace, root: Path) -> int:
     else:
         emit_text(format_search(result, with_window=args.with_window))
     return 0
+
+
+def run_pin_evidence_command(args: argparse.Namespace, root: Path) -> int:
+    reader = ProjectAmberV2SourceReader.open(root)
+    evidence = reader.pin_unit_evidence(
+        args.unit_id,
+        args.start,
+        args.end,
+        role=args.role,
+        source_level=args.source_level,
+        note=args.note,
+        hypothesis_ids=args.hypothesis_ids,
+    )
+    if evidence is None:
+        return emit_error(
+            "unit_not_found",
+            f"Unit not found: {args.unit_id}",
+            json_output=args.json,
+            resource_id=args.unit_id,
+        )
+    store = EvidenceStore.open(root, workspace_id=args.workspace)
+    saved = store.append(evidence)
+    payload = {
+        "ok": True,
+        "created": saved["created"],
+        "workspace_id": args.workspace,
+        "path": saved["path"],
+        "evidence_id": saved["record"]["evidence_id"],
+        "evidence": saved["record"],
+    }
+    if args.json:
+        emit_json(payload)
+    else:
+        emit_text(format_pin_result(payload))
+    return 0
+
+
+def run_evidence_command(args: argparse.Namespace, root: Path) -> int:
+    store = EvidenceStore.open(root, workspace_id=args.workspace)
+    if args.evidence_command == "list":
+        records = store.list(role=args.role, query=args.query)
+        payload = {
+            "workspace_id": args.workspace,
+            "path": str(store.path),
+            "count": len(records),
+            "evidence": records,
+        }
+        if args.json:
+            emit_json(payload)
+        else:
+            emit_text(format_evidence_list(payload))
+        return 0
+    if args.evidence_command == "show":
+        record = store.get(args.evidence_id)
+        if record is None:
+            return emit_error(
+                "evidence_not_found",
+                f"Evidence not found: {args.evidence_id}",
+                json_output=args.json,
+                resource_id=args.evidence_id,
+            )
+        if args.json:
+            emit_json(record)
+        else:
+            emit_text(format_evidence_record(record))
+        return 0
+    raise AssertionError(args.evidence_command)
 
 
 def run_source_reader_command(args: argparse.Namespace, root: Path) -> int:
@@ -373,6 +468,71 @@ def format_parallel(parallel: dict[str, Any]) -> str:
                 lines.append(f"Source URL: {source_url}")
             lines.append(str(block.get("text") or ""))
         lines.append("")
+    return "\n".join(lines)
+
+
+def format_pin_result(payload: dict[str, Any]) -> str:
+    status = "saved" if payload.get("created") else "already exists"
+    evidence = payload.get("evidence") or {}
+    lines = [
+        f"Evidence: {payload.get('evidence_id')}",
+        f"Status: {status}",
+        f"Workspace: {payload.get('workspace_id')}",
+        f"Role: {evidence.get('role')}",
+        f"Unit: {evidence.get('unit_id')}",
+        f"Excerpt: {evidence.get('excerpt')}",
+    ]
+    note = evidence.get("note")
+    if note:
+        lines.append(f"Note: {note}")
+    return "\n".join(lines)
+
+
+def format_evidence_list(payload: dict[str, Any]) -> str:
+    records = payload.get("evidence") or []
+    lines = [
+        f"Workspace: {payload.get('workspace_id')}",
+        f"Count: {payload.get('count')}",
+        "",
+    ]
+    if not records:
+        lines.append("(none)")
+        return "\n".join(lines)
+    for record in records:
+        lines.append(
+            f"{record.get('evidence_id')} [{record.get('role')}] "
+            f"{record.get('title') or '(untitled)'} / {record.get('language')}"
+        )
+        lines.append(f"  Unit: {record.get('unit_id') or '(document span)'}")
+        lines.append(f"  Excerpt: {truncate_one_line(record.get('excerpt') or '', 180)}")
+        if record.get("note"):
+            lines.append(f"  Note: {truncate_one_line(record.get('note') or '', 180)}")
+    return "\n".join(lines)
+
+
+def format_evidence_record(record: dict[str, Any]) -> str:
+    lines = [
+        f"Evidence: {record.get('evidence_id')}",
+        f"Workspace: {record.get('workspace_id')}",
+        f"Role: {record.get('role')}",
+        f"Source Level: {record.get('source_level')}",
+        f"Document: {record.get('document_id')}",
+        f"Unit: {record.get('unit_id') or '(document span)'}",
+        f"Section: {record.get('section_id') or '(none)'}",
+        f"Canonical: {record.get('canonical_id')}",
+        f"Source URL: {record.get('source_url') or '(none)'}",
+        f"Language: {record.get('language')}",
+        f"Content Type: {record.get('content_type')}",
+        f"Title: {record.get('title') or '(untitled)'}",
+        f"Span: {record.get('start_char')}:{record.get('end_char')}",
+        f"Created: {record.get('created_at')}",
+        "",
+        "[Excerpt]",
+        str(record.get("excerpt") or ""),
+    ]
+    note = record.get("note")
+    if note:
+        lines.extend(["", "[Note]", str(note)])
     return "\n".join(lines)
 
 

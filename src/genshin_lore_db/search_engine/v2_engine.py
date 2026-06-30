@@ -7,6 +7,7 @@ from typing import Any
 from genshin_lore_db.normalize import clean_text
 from genshin_lore_db.pipeline.project_amber_v2 import search_project_amber_v2
 from genshin_lore_db.search_engine.evidence import build_evidence_pack, quality_summary
+from genshin_lore_db.search_engine.evidence_store import EvidenceStore
 from genshin_lore_db.search_engine.router import route_query
 from genshin_lore_db.search_engine.source_reader import ProjectAmberV2SourceReader, normalize_source_result
 
@@ -83,6 +84,7 @@ class ProjectAmberV2SearchEngine:
         content_type: str | None = None,
         include_textmap: bool = True,
         mode: str = "unicode",
+        workspace_id: str = "default",
     ) -> dict[str, Any]:
         route = route_query(query).to_dict()
         expansion = build_v2_expansion(query)
@@ -97,6 +99,24 @@ class ProjectAmberV2SearchEngine:
         )
         evidence_groups = package_v2_evidence(hits)
         coverage = v2_coverage_summary(hits)
+        candidate_hits = hits
+        if not any(hit.get("unit_id") for hit in candidate_hits):
+            candidate_hits = self._search_rows(
+                query,
+                limit=limit,
+                language=language,
+                content_type=content_type,
+                include_textmap=False,
+                mode=mode,
+                expansion=expansion,
+            )
+        candidate_evidence = build_candidate_evidence(candidate_hits, self.search_db, query=query)
+        pinned_evidence = load_pinned_evidence(
+            self.search_db,
+            workspace_id=workspace_id,
+            query=query,
+            hits=hits,
+        )
         evidence_pack = build_evidence_pack(
             query=query,
             mode=route.get("mode") or "investigate",
@@ -115,6 +135,13 @@ class ProjectAmberV2SearchEngine:
             "results": hits,
             "evidence_groups": evidence_groups,
             "evidence_pack": evidence_pack,
+            "candidate_evidence": candidate_evidence,
+            "pinned_evidence": pinned_evidence,
+            "counter_candidates": [item for item in candidate_evidence if item.get("suggested_role") == "counter"],
+            "translation_note_candidates": [
+                item for item in candidate_evidence if item.get("suggested_role") == "translation_note"
+            ],
+            "evidence_store": {"workspace_id": workspace_id},
             "coverage": coverage,
             "quality": evidence_pack["quality"],
             "llm_ready": {
@@ -203,6 +230,86 @@ def attach_source_windows(hits: list[dict[str, Any]], search_db: Path, *, before
         else:
             hit["source_reader"] = resolved["error"]
             hit["source_window"] = None
+
+
+def build_candidate_evidence(
+    hits: list[dict[str, Any]],
+    search_db: Path,
+    *,
+    query: str,
+    limit: int = 12,
+) -> list[dict[str, Any]]:
+    reader = ProjectAmberV2SourceReader(search_db)
+    candidates = []
+    seen_units = set()
+    for hit in hits:
+        unit_id = hit.get("unit_id")
+        if not unit_id or unit_id in seen_units:
+            continue
+        seen_units.add(unit_id)
+        window_result = reader.read_result_window(hit, before=1, after=1)
+        window = window_result.get("window") if window_result.get("ok") else None
+        center = window.get("center") if window else None
+        excerpt = clean_text((center or {}).get("text") or hit.get("excerpt") or hit.get("text") or "")
+        candidates.append(
+            {
+                "unit_id": unit_id,
+                "document_id": hit.get("document_id"),
+                "section_id": hit.get("section_id"),
+                "canonical_id": hit.get("canonical_id"),
+                "title": hit.get("title"),
+                "language": hit.get("language"),
+                "content_type": hit.get("content_type"),
+                "excerpt": excerpt[:900],
+                "suggested_role": suggested_evidence_role(hit, query=query, text=excerpt),
+                "score": hit.get("score"),
+                "source_url": hit.get("source_url"),
+                "window_id": window.get("window_id") if window else None,
+                "confirmed": False,
+            }
+        )
+        if len(candidates) >= limit:
+            break
+    return candidates
+
+
+def load_pinned_evidence(
+    search_db: Path,
+    *,
+    workspace_id: str,
+    query: str,
+    hits: list[dict[str, Any]],
+    limit: int = 20,
+) -> list[dict[str, Any]]:
+    store = EvidenceStore.open(search_db, workspace_id=workspace_id)
+    records = store.list(query=query)
+    seen = {str(record.get("evidence_id")) for record in records}
+    hit_unit_ids = {str(hit.get("unit_id")) for hit in hits if hit.get("unit_id")}
+    hit_document_ids = {str(hit.get("document_id")) for hit in hits if hit.get("document_id")}
+    hit_canonical_ids = {str(hit.get("canonical_id")) for hit in hits if hit.get("canonical_id")}
+    for record in store.list():
+        evidence_id = str(record.get("evidence_id") or "")
+        if evidence_id in seen:
+            continue
+        if (
+            str(record.get("unit_id") or "") in hit_unit_ids
+            or str(record.get("document_id") or "") in hit_document_ids
+            or str(record.get("canonical_id") or "") in hit_canonical_ids
+        ):
+            records.append(record)
+            seen.add(evidence_id)
+        if len(records) >= limit:
+            break
+    return records[:limit]
+
+
+def suggested_evidence_role(hit: dict[str, Any], *, query: str, text: str) -> str:
+    haystack = clean_text(f"{query}\n{text}\n{hit.get('title') or ''}").casefold()
+    if any(term in haystack for term in ["반례", "모순", "counter", "contradict", "however", "but", "아니"]):
+        return "counter"
+    if any(term in haystack for term in ["번역", "translation", "원문", "일본어", "중국어", "영어"]):
+        return "translation_note"
+    return "context"
 
 
 def matched_v2_terms(hit: dict[str, Any], expansion: dict[str, Any]) -> list[dict[str, Any]]:

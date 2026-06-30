@@ -2,7 +2,7 @@
 
 이 문서는 현재 코드, 데이터 산출물, 문서, 테스트의 기준 배치를 정리합니다. 기준은 `PROJECT_VISION`, `ARCHITECTURE`, `DATA_PIPELINE`, `SEARCH_ENGINE`, `ANSWER_ROUTING_DESIGN`, `ROADMAP`, `docs/research/*`의 현재 결론입니다.
 
-현재 단계는 **v0.7 Source Reader 운영화**입니다. 웹 UI, API 서버, tool-calling agent, Conversation Orchestrator는 아직 구현 단계가 아닙니다.
+현재 단계는 **v0.8 Evidence Pin 운영화**입니다. 웹 UI, API 서버, tool-calling agent, Conversation Orchestrator는 아직 구현 단계가 아닙니다.
 
 ## 최상위 구조
 
@@ -136,6 +136,7 @@ aliases.py     엔티티/별칭 인덱스 생성과 alias 정규화
 answer_evaluation.py 정답형 QA 평가셋 실행과 지표 계산
 engine.py      search/investigate 코어, 검색 DB 생성 보조
 evidence.py    Evidence Pack 생성
+evidence_store.py JSONL evidence pin 저장소
 evaluation.py  검색 평가셋 실행과 지표 계산
 llm.py         investigate용 LLM 프롬프트 패키지 생성
 local_llm.py   Ollama 로컬 LLM 호출과 오류/fallback 정보
@@ -193,6 +194,8 @@ build_report.json
 
 `data/processed/search_v2/project_amber_search.sqlite3`는 v2 개발자 검색 DB입니다. 검색 결과는 문서뿐 아니라 `text_unit_id`까지 추적할 수 있어야 합니다.
 
+`data/workspaces/<workspace_id>/evidence_pins.jsonl`은 v0.8 evidence pin 저장소입니다. 기본 workspace는 `default`이고, 같은 `evidence_id`는 중복 저장하지 않습니다.
+
 기존 `data/canonical/*.jsonl`, `data/processed/search/`, `data/processed/project_amber/`는 v1/legacy 산출물로 유지합니다.
 
 ## 문서 책임
@@ -228,12 +231,12 @@ docs/research/RESEARCH_AGENT_DISCUSSION_EVALUATION.md
 현재 구현 단계:
 
 ```text
-v0.7
-- Project Amber v2 검색 결과 Source Reader ID 표준화
-- read-window/read-document/read-section/read-parallel CLI
-- search --with-window 개발자 워크플로우
+v0.8
+- JSONL evidence pin store
+- pin-evidence/evidence list/evidence show CLI
+- investigate candidate_evidence/pinned_evidence 출력
+- Source Reader span pin과 evidence store 연결
 - basic_lookup 정답형 QA 안정화 유지
-- 평가셋 확대
 ```
 
 다음 단계에서 추가될 가능성이 높은 배치:

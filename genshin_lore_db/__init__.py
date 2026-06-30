@@ -9,4 +9,4 @@ _src_package = Path(__file__).resolve().parents[1] / "src" / __name__
 if _src_package.is_dir():
     __path__.append(str(_src_package))
 
-__version__ = "0.7.0"
+__version__ = "0.8.0"
