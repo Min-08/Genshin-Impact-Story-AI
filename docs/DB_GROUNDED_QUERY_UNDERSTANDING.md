@@ -1,11 +1,11 @@
 # DB-Grounded Query Understanding
 
-Status: direction document for v0.8.2.
+Status: implemented architecture record for v0.8.3.
 
 This document defines the query-understanding direction that must be completed
-before v0.9 writer work begins. It is a product and architecture contract, not
-an implementation record. The `query_understanding` module described here is
-planned for v0.8.3 and is not implemented yet.
+before v0.9 writer work begins. It is now both a product contract and the
+implementation record for the v0.8.3 `query_understanding` layer. Summary,
+analysis, and research writers remain future-route work.
 
 ## Product Direction
 
@@ -38,8 +38,8 @@ keyword heuristics or from an unsupported LLM guess.
 ## Glossary
 
 DB-Grounded Query Understanding
-: The planned v0.8.3 layer that searches/inspects DB-backed candidates before
-final route selection.
+: The v0.8.3 layer that searches/inspects DB-backed candidates before final
+route selection.
 
 Meaning Search
 : The candidate-search part of DB-Grounded Query Understanding. It gathers
@@ -134,13 +134,13 @@ The LLM must not be the final fact authority:
 
 ## Target Architecture
 
-Planned v0.8.3 module boundary:
+Implemented v0.8.3 module boundary:
 
 ```text
 src/genshin_lore_db/search_engine/query_understanding.py
 ```
 
-Planned responsibilities:
+Implemented responsibilities:
 
 ```text
 understand_query(query, conversation_state, db) -> QueryUnderstanding
@@ -157,9 +157,9 @@ understand_query(query, conversation_state, db) -> QueryUnderstanding
 8. Preserve diagnostics for tests and bug bash review.
 ```
 
-This module should sit before `route_answer_query()` makes final execution
-decisions. It should feed the existing `basic_lookup`, `search`, `investigate`,
-Source Reader, and later writer routes rather than replacing them.
+This module sits before `route_answer_query()` makes final execution decisions.
+It feeds the existing `basic_lookup`, conservative future routes, Source
+Reader follow-ups, and later writer routes rather than replacing them.
 
 ## Candidate Meaning Pack
 
@@ -318,7 +318,7 @@ Evidence Pack, Source Reader spans, or structured DB facts depending on route.
 
 ## Testing Strategy
 
-v0.8.3 should add tests at three levels:
+v0.8.3 added tests at three levels:
 
 - Unit tests for candidate gathering, match strength classification, and
   context rejection.
@@ -357,21 +357,22 @@ v0.8.1 fixed/hardened:
 - Regression tests for ambiguous lore terms, exact supported lookup, and
   context behavior.
 
-v0.8.2 current documentation goal:
+v0.8.2 documentation goal:
 
 - Align roadmap and docs around DB-Grounded Query Understanding.
 - State that speed is not the primary optimization target.
 - Block v0.9 writers until meaning-first routing is implemented and tested.
 
-v0.8.3 planned implementation:
+v0.8.3 implemented:
 
-- Add DB-Grounded Query Understanding / Meaning Search.
-- Add Candidate Meaning Pack diagnostics.
-- Add strong/weak/unsafe match policy in code.
-- Strengthen LLM semantic adjudication while validating every result against
+- Added DB-Grounded Query Understanding / Meaning Search in
+  `src/genshin_lore_db/search_engine/query_understanding.py`.
+- Added Candidate Meaning Pack diagnostics to route and answer output.
+- Added strong/weak/unsafe match policy in code.
+- Strengthened LLM semantic adjudication while validating every result against
   DB candidates and Source Reader evidence handles.
 
-v0.8.4 planned cleanup:
+v0.8.4 cleanup:
 
 - Regression cleanup after v0.8.3.
 - Expand bug bash cases.
@@ -393,6 +394,6 @@ writer/executor is not implemented yet. A future-route must not produce a fake
 answer. It should return a clear unsupported/current-scope message and, when
 useful, source-readable search or investigate results.
 
-At v0.8.2, broad `summary`, claim-based `analysis`, and full `research` writers
-are future-route work. The current lore exploration path is `search` and
+At v0.8.3, broad `summary`, claim-based `analysis`, and full `research` writers
+remain future-route work. The current lore exploration path is `search` and
 `investigate`.

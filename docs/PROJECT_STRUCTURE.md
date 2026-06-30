@@ -238,14 +238,16 @@ v0.8
 - investigate candidate_evidence/pinned_evidence 출력
 - Source Reader span pin과 evidence store 연결
 - basic_lookup 정답형 QA 안정화 유지
+
+v0.8.3
+- DB-Grounded Query Understanding / Meaning Search
+- query_understanding Candidate Meaning Pack diagnostics on route/answer output
+- strong/weak/unsafe candidate policy before basic_lookup execution
 ```
 
 다음 단계에서 추가될 가능성이 높은 배치:
 
 ```text
-src/genshin_lore_db/search_engine/query_understanding.py
-  planned v0.8.3 DB-Grounded Query Understanding / Meaning Search; not implemented yet
-
 src/genshin_lore_db/answer_engine/
   router_contracts.py
   planner.py

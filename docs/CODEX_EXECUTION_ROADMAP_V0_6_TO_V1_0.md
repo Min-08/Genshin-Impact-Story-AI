@@ -43,8 +43,8 @@ The current practical implementation center is:
      `investigate()` candidate/pinned evidence output are operational at v0.8.
 
 5. **DB-Grounded Query Understanding**
-   - Planned for v0.8.3.
-   - Query meaning must be inferred from DB-backed candidates before final
+   - Implemented in v0.8.3.
+   - Query meaning is inferred from DB-backed candidates before final
      routing.
    - This is required before summary/analysis/research writer work begins.
 
@@ -826,13 +826,13 @@ Scope:
 
 ## v0.8.3 - DB-Grounded Query Understanding / Meaning Search
 
-Status: planned next implementation phase.
+Status: implemented in v0.8.3.
 
 Scope:
 
-1. Add a query-understanding layer before final routing.
-2. Build Candidate Meaning Pack diagnostics from DB-backed candidates.
-3. Classify candidate matches as strong, weak, or unsafe.
+1. Added a query-understanding layer before final routing.
+2. Built Candidate Meaning Pack diagnostics from DB-backed candidates.
+3. Classified candidate matches as strong, weak, or unsafe.
 4. Use the LLM as a semantic adjudicator over DB candidates, not as a fact
    authority.
 5. Validate LLM-selected meanings through deterministic DB/entity resolver and
@@ -854,7 +854,7 @@ tests and evaluations pass
 
 ## v0.8.4 - Regression Cleanup
 
-Status: planned after v0.8.3.
+Status: current regression cleanup after v0.8.3.
 
 Scope:
 

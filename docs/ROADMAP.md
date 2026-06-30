@@ -28,7 +28,7 @@ Fixed in v0.8.1:
 
 Current documentation phase:
 
-- v0.8.2 Direction/Roadmap Alignment.
+- v0.8.4 Regression Cleanup after v0.8.3 implementation.
 - Canonical direction: `docs/DB_GROUNDED_QUERY_UNDERSTANDING.md`.
 
 ## Product Principle
@@ -50,16 +50,16 @@ resolution and Source Reader evidence.
 | v0.7 | Source Reader Operationalization | Done | Search results can open source windows, documents, sections, and parallel text. |
 | v0.8 | Evidence Pin Operationalization | Done | Evidence can be pinned, stored, listed, shown, and surfaced in investigate output. |
 | v0.8.1 | Active QA/Search Bug Bash | Done | Harden current-scope QA/search behavior and ambiguous routing regressions. |
-| v0.8.2 | Direction/Roadmap Alignment | Current | Align docs around DB-grounded query understanding before implementation. |
-| v0.8.3 | DB-Grounded Query Understanding / Meaning Search | Next | Build Candidate Meaning Pack, strong/weak/unsafe matching, and meaning-first routing. |
-| v0.8.4 | Regression Cleanup | Planned | Re-run bug bash and stabilize route/status metadata after v0.8.3. |
+| v0.8.2 | Direction/Roadmap Alignment | Done | Align docs around DB-grounded query understanding before implementation. |
+| v0.8.3 | DB-Grounded Query Understanding / Meaning Search | Done | Build Candidate Meaning Pack, strong/weak/unsafe matching, and meaning-first routing. |
+| v0.8.4 | Regression Cleanup | Current | Re-run bug bash and stabilize route/status metadata after v0.8.3. |
 | v0.9 | Summary/Analysis/Research Writer Foundation | Blocked | Start writer work only after v0.8.x stabilization and query understanding complete. |
 | v1.0 | Research Assistant MVP | Future | API, conversation orchestration, source viewer, workspace memory, and user-facing flow. |
 
-## v0.8.3 Requirements
+## v0.8.3 Implemented Scope
 
-v0.8.3 should not implement v0.9 writers, vector search, motif graph, API, or
-frontend integration. It should focus on query meaning:
+v0.8.3 does not implement v0.9 writers, vector search, motif graph, API, or
+frontend integration. It focuses on query meaning:
 
 - Search/inspect the DB before final routing.
 - Build an inspectable Candidate Meaning Pack.

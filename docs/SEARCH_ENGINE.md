@@ -2,9 +2,9 @@
 
 현재 검색엔진은 웹 UI가 아니라 개발자용 코어입니다. 목표는 사용자의 자연어 질문을 공식 텍스트 탐색용 질의로 확장하고, 결과를 Evidence Pack으로 묶어 LLM 또는 사람이 검토할 수 있게 만드는 것입니다.
 
-현재 검색엔진 단계는 **v0.8**이고, Evidence Pack 스키마는 `evidence_pack.v0.5`를 유지하면서 v0.8 candidate/pinned evidence 필드를 `investigate` 결과에 추가합니다.
+현재 검색엔진 단계는 **v0.8.3**이고, Evidence Pack 스키마는 `evidence_pack.v0.5`를 유지하면서 v0.8 candidate/pinned evidence 필드를 `investigate` 결과에 추가합니다.
 
-## v0.8.2 Direction Alignment
+## v0.8.3 Query Understanding
 
 The current search engine is the source-readable lore exploration path. Use
 `search` when the user needs ranked source candidates, and use `investigate`
@@ -12,11 +12,13 @@ when the user needs an Evidence Pack style bundle with candidate and pinned
 evidence. `answer` remains the structured QA path for implemented
 `basic_lookup` targets only.
 
-DB-Grounded Query Understanding / Meaning Search is planned for v0.8.3 and is
-not implemented yet. Until then, docs and tests should treat query
-understanding as a direction, not as a completed module.
+DB-Grounded Query Understanding / Meaning Search is implemented in
+`src/genshin_lore_db/search_engine/query_understanding.py`. Route/debug and
+answer output include `query_understanding` diagnostics with candidate kind,
+match strength, route candidate, source readability, context use, and LLM
+adjudication/fallback metadata.
 
-Principles for the next search/QA hardening pass:
+Current search/QA routing principles:
 
 - Do not optimize primarily for answer speed.
 - Search and inspect DB candidates before final routing.
@@ -29,6 +31,11 @@ Principles for the next search/QA hardening pass:
 - Use the LLM as a semantic adjudicator, not the final fact authority.
 - Validate LLM-selected meanings through deterministic DB/entity resolution and
   source-readable Search/Source Reader handles.
+- TextMap-only candidates can aid discovery but must not be presented as exact
+  source-readable text units.
+- Project Amber v2 search remains strict-first. If a multi-part query has no
+  strict FTS rows, `search`/`investigate` retry meaningful component terms,
+  merge/dedupe those rows, and expose `retrieval.fallback_*` diagnostics.
 
 Current writer status:
 

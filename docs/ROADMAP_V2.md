@@ -1,11 +1,12 @@
 # Roadmap v2
 
-Updated: 2026-06-30
+Updated: 2026-07-01
 
 This document records the current interpretation of the roadmap after v0.8
-Evidence Pin operationalization and v0.8.1 QA/search hardening. The canonical
-execution order is in `docs/CODEX_EXECUTION_ROADMAP_V0_6_TO_V1_0.md`; this file
-summarizes the product direction and remaining gaps.
+Evidence Pin operationalization, v0.8.1 QA/search hardening, and v0.8.3
+DB-Grounded Query Understanding. The canonical execution order is in
+`docs/CODEX_EXECUTION_ROADMAP_V0_6_TO_V1_0.md`; this file summarizes the
+product direction and remaining gaps.
 
 ## Current Stage
 
@@ -20,6 +21,7 @@ The current system is a developer-facing retrieval core:
 - Evidence Pack prototype.
 - Evidence Pin store and CLI workflow.
 - `search` and `investigate` as the current lore exploration path.
+- DB-Grounded Query Understanding / Meaning Search diagnostics.
 
 It is not yet:
 
@@ -60,7 +62,7 @@ Core rules:
 | Source Reader | Implemented | Unit/window/document/section/parallel text workflow. |
 | Evidence Pin | Implemented | JSONL store, pin/list/show CLI, investigate integration. |
 | Search/investigate | Implemented | Current lore exploration path. |
-| DB-Grounded Query Understanding | Planned v0.8.3 | Candidate Meaning Pack and meaning-first routing. |
+| DB-Grounded Query Understanding | Implemented v0.8.3 | Candidate Meaning Pack and meaning-first routing. |
 | Summary writer | Planned v0.9+ | Route metadata may exist, writer does not. |
 | Analysis writer | Planned v0.9+ | Claim/evidence writer not implemented. |
 | Research writer/loop | Future | Not an autonomous research agent yet. |
@@ -76,20 +78,21 @@ v0.8.1 - Active QA/Search Bug Bash and current-scope hardening:
 
 v0.8.2 - Direction/Roadmap Alignment:
 
-- Current documentation work.
+- Completed documentation work.
 - Adds canonical DB-grounded query understanding direction.
 - Blocks v0.9 writers until v0.8.3 and v0.8.4 are complete.
 
 v0.8.3 - DB-Grounded Query Understanding / Meaning Search:
 
-- Build Candidate Meaning Pack.
-- Add strong/weak/unsafe match policy.
-- Use LLM semantic adjudication only over DB-backed candidates.
-- Route unsupported lore concepts to search/investigate or conservative
+- Built Candidate Meaning Pack.
+- Added strong/weak/unsafe match policy.
+- Uses LLM semantic adjudication only over DB-backed candidates.
+- Routes unsupported lore concepts to search/investigate or conservative
   future-route behavior instead of wrong `basic_lookup`.
 
 v0.8.4 - Regression Cleanup:
 
+- Current stabilization pass.
 - Re-run QA/search bug bash.
 - Expand evaluation cases.
 - Correct route/status metadata.
@@ -118,6 +121,7 @@ fast summarizer.
 
 ## Next Decision
 
-v0.8.3 can begin when this documentation alignment is committed and pushed.
-The implementation goal should be scoped to DB-Grounded Query Understanding /
-Meaning Search only.
+The next decision is whether v0.9 can start after v0.8.4 regression cleanup
+passes. The first writer goal should remain scoped to evidence-grounded
+summary/analysis/research foundations, not vector search, motif graph, API, or
+frontend work.

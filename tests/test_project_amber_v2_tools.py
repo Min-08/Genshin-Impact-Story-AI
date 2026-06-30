@@ -16,7 +16,7 @@ from genshin_lore_db.pipeline.project_amber_v2_audit import audit_project_amber_
 from genshin_lore_db.pipeline.project_amber_v2_evaluation import evaluate_project_amber_v2_search
 from genshin_lore_db.search_engine.evidence_store import EvidenceStore
 from genshin_lore_db.search_engine.source_reader import ProjectAmberV2SourceReader
-from genshin_lore_db.search_engine.v2_engine import ProjectAmberV2SearchEngine
+from genshin_lore_db.search_engine.v2_engine import ProjectAmberV2SearchEngine, matched_v2_terms
 
 
 def test_project_amber_v2_audit_passes_on_consistent_fixture(tmp_path: Path) -> None:
@@ -328,9 +328,39 @@ def test_project_amber_v2_search_engine_returns_v2_shape(tmp_path: Path) -> None
 
     assert result["engine"]["db_version"] == "v2"
     assert result["mode"] == "search"
+    assert result["retrieval"]["fallback_used"] is False
     assert result["results"][0]["result_type"] == "text_unit"
     assert result["results"][0]["unit_id"] == "project_amber:quest:1:en:detail:unit:0"
     assert result["results"][0]["score"] > 0
+
+
+def test_project_amber_v2_search_falls_back_to_component_terms_when_strict_query_is_empty(tmp_path: Path) -> None:
+    _, db_path = build_tiny_v2_fixture(tmp_path)
+    engine = ProjectAmberV2SearchEngine(db_path)
+
+    result = engine.search("memories Travelers", language="en", content_type="quest", limit=4)
+    unit_ids = {hit["unit_id"] for hit in result["results"] if hit.get("unit_id")}
+
+    assert result["retrieval"]["fallback_used"] is True
+    assert result["retrieval"]["fallback_type"] == "component_terms"
+    assert result["retrieval"]["fallback_terms"] == ["memories", "Travelers"]
+    assert "project_amber:quest:1:en:detail:unit:1" in unit_ids
+    assert "project_amber:quest:1:en:detail:unit:3" in unit_ids
+    assert all(hit["result_type"] == "text_unit" for hit in result["results"])
+    assert all(hit["retrieval_fallback"]["type"] == "component_terms" for hit in result["results"])
+
+
+def test_project_amber_v2_matched_terms_ignore_one_character_overlaps() -> None:
+    expansion = {
+        "terms": [
+            {"term": "I", "normalized": "i", "source": "query", "concept_id": None, "level": 0},
+            {"term": "Irminsul", "normalized": "irminsul", "source": "query", "concept_id": None, "level": 0},
+        ]
+    }
+
+    matched = matched_v2_terms({"title": "", "speaker": "", "text": "Irminsul records memories."}, expansion)
+
+    assert [item["term"] for item in matched] == ["Irminsul"]
 
 
 def test_project_amber_v2_search_results_are_source_readable(tmp_path: Path) -> None:
@@ -386,6 +416,19 @@ def test_project_amber_v2_investigate_preserves_unit_id_in_evidence_pack(tmp_pat
     assert result["engine"]["db_version"] == "v2"
     assert result["evidence_pack"]["sources"][0]["unit_id"] == "project_amber:quest:1:en:detail:unit:0"
     assert result["evidence_pack"]["groups"][0]["support_type"] == "direct"
+
+
+def test_project_amber_v2_investigate_uses_component_fallback_for_candidate_evidence(tmp_path: Path) -> None:
+    _, db_path = build_tiny_v2_fixture(tmp_path)
+    engine = ProjectAmberV2SearchEngine(db_path)
+
+    result = engine.investigate("memories Travelers", language="en", content_type="quest", limit=4)
+    candidate_unit_ids = {item["unit_id"] for item in result["candidate_evidence"]}
+
+    assert result["retrieval"]["fallback_used"] is True
+    assert "project_amber:quest:1:en:detail:unit:1" in candidate_unit_ids
+    assert "project_amber:quest:1:en:detail:unit:3" in candidate_unit_ids
+    assert result["evidence_pack"]["sources"][0]["unit_id"].startswith("project_amber:quest:1:en:detail:unit:")
 
 
 def test_project_amber_v2_investigate_returns_candidate_and_pinned_evidence(tmp_path: Path) -> None:

@@ -430,6 +430,9 @@ def test_roadmap_required_basic_lookup_queries() -> None:
         assert result["route"]
         assert result["canonical_id"]
         assert result["content_type"] in {"avatar", "weapon", "reliquary"}
+        selected = result["query_understanding"]["selected_candidate"]
+        assert selected["kind"] == "supported_entity"
+        assert selected["match_strength"] == "strong"
 
 
 def test_roadmap_unsupported_strategy_queries_are_hard_blocked() -> None:
@@ -484,6 +487,7 @@ def test_lore_terms_do_not_promote_to_basic_lookup_entities() -> None:
         assert result["content_type"] is None
         assert result["route"]["mode"] != "basic_lookup"
         assert result["route"]["answer_plan"]["route"] != "basic_lookup"
+        assert result["query_understanding"]["selected_candidate"]["kind"] == "lore_concept"
         assert forbidden_name not in result["final_answer"]
 
 
@@ -496,7 +500,21 @@ def test_heavenly_principles_does_not_match_one_character_weapon_token() -> None
         assert result["content_type"] is None
         assert result["route"]["mode"] != "basic_lookup"
         assert result["route"]["answer_plan"]["route"] != "basic_lookup"
+        assert result["query_understanding"]["selected_candidate"]["kind"] == "lore_concept"
         assert "타오르는 천 개의 태양" not in result["final_answer"]
+
+
+def test_required_lore_concepts_remain_future_route_with_diagnostics() -> None:
+    for query in ["파네스", "세계수", "니벨룽겐", "운명의 베틀", "강림자", "셀레스티아", "심연", "켄리아", "금지된 지식"]:
+        result = answer_question(".", query, use_llm=False)
+
+        assert result["intent"] == "unsupported", query
+        assert result["canonical_id"] is None
+        assert result["content_type"] is None
+        assert result["route"]["mode"] != "basic_lookup"
+        assert result["route"]["unsupported_reason"] == "route_not_implemented"
+        assert result["query_understanding"]["selected_candidate"]["kind"] == "lore_concept"
+        assert "search 또는 investigate" in result["final_answer"]
 
 
 def test_single_short_title_token_does_not_resolve_weapon() -> None:
@@ -510,7 +528,7 @@ def test_single_short_title_token_does_not_resolve_weapon() -> None:
 
 
 def test_partial_weapon_title_with_strong_tokens_still_resolves() -> None:
-    for query in ["천 개의 태양 제련별 수치", "타오르는 천 개의 태양 제련별 수치"]:
+    for query in ["천 개의 태양 제련별 수치", "타오르는 천 개의 태양 제련별 수치", "타오르는 천 개의 태양 재련별 수치"]:
         result = answer_question(".", query, use_llm=False)
 
         assert result["route"]["mode"] == "basic_lookup", query
@@ -518,6 +536,8 @@ def test_partial_weapon_title_with_strong_tokens_still_resolves() -> None:
         assert result["content_type"] == "weapon"
         assert result["canonical_id"] == "project_amber:weapon:12514"
         assert result["requested_style"] == "detail"
+        assert result["query_understanding"]["selected_candidate"]["kind"] == "supported_entity"
+        assert result["query_understanding"]["selected_candidate"]["match_strength"] == "strong"
 
 
 def test_llm_basic_lookup_without_db_resolution_is_not_authoritative(monkeypatch) -> None:
@@ -743,6 +763,19 @@ def test_explicit_story_topic_does_not_inherit_previous_weapon_context() -> None
     assert result["route"]["resolved_query"] == "수메르 스토리 요약해줘"
     assert result["canonical_id"] is None
     assert result["content_type"] is None
+    assert result["query_understanding"]["selected_candidate"]["kind"] == "region_or_story_scope"
+    assert result["query_understanding"]["conversation_context"]["rejected_reason"] == "explicit_topic"
+
+
+def test_story_scope_queries_are_summary_future_route() -> None:
+    for query in ["수메르 스토리 요약해줘", "폰타인 마신임무 요약", "카리베르트 줄거리"]:
+        result = answer_question(".", query, use_llm=False)
+
+        assert result["route"]["mode"] == "summary", query
+        assert result["route"]["unsupported_reason"] == "route_not_implemented"
+        assert result["canonical_id"] is None
+        assert result["content_type"] is None
+        assert result["query_understanding"]["selected_candidate"]["route_candidate"] == "summary"
 
 
 def test_low_information_story_followup_can_inherit_previous_entity() -> None:

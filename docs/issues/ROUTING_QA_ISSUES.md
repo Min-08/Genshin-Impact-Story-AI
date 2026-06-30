@@ -1,6 +1,6 @@
 # Routing And QA Issue Log
 
-Status: updated during v0.8.2 Direction/Roadmap Alignment.
+Status: updated during v0.8.4 regression cleanup after v0.8.3 implementation.
 
 This file tracks routing and QA issues found in the interactive answer path.
 Historical v0.6.x issues remain useful as regression context, but the current
@@ -19,6 +19,8 @@ Implemented/current:
 - `basic_lookup` QA supports current structured targets only.
 - `search` and `investigate` are the current lore exploration paths.
 - Source Reader and Evidence Pin workflows exist.
+- DB-Grounded Query Understanding / Meaning Search exists before final QA
+  routing.
 - Local LLM can support rewrite/semantic parsing, but final facts are validated
   by deterministic DB/entity logic and validators.
 
@@ -32,7 +34,7 @@ Fixed in v0.8.1 QA/search bug bash:
 - Regression tests cover supported lookup, ambiguous lore concepts, and
   conversation-context behavior.
 
-Planned for v0.8.3:
+Implemented in v0.8.3:
 
 - DB-Grounded Query Understanding / Meaning Search.
 - Candidate Meaning Pack diagnostics.
@@ -95,14 +97,14 @@ Resolution:
 - Regression checks should continue comparing route, intent, selected target,
   validation status, and final answer mode.
 
-## Active Risk: Weak Lore Overlap Becomes Wrong Basic Lookup
+## Guarded Risk: Weak Lore Overlap Becomes Wrong Basic Lookup
 
 Problem:
 
 Short lore concepts can partially overlap with supported entity titles. A weak
 text/title match must not become avatar/weapon/reliquary `basic_lookup`.
 
-Required v0.8.3 behavior:
+Required behavior:
 
 - Build a Candidate Meaning Pack before final routing.
 - Classify supported entity/title matches as strong, weak, or unsafe.
@@ -111,14 +113,14 @@ Required v0.8.3 behavior:
 - Prefer source-readable `search` or `investigate` when the target is a lore
   concept and no implemented writer exists.
 
-## Active Risk: Conversation Context Hijacks Explicit Topics
+## Guarded Risk: Conversation Context Hijacks Explicit Topics
 
 Problem:
 
 Previous conversation context is helpful for "tell me more" follow-ups but
 dangerous when the user asks a new explicit topic.
 
-Required v0.8.3 behavior:
+Required behavior:
 
 - Use `last_entity` or `last_sources` only for genuinely low-information
   follow-ups.
@@ -126,14 +128,14 @@ Required v0.8.3 behavior:
   concept, title, or relation.
 - Emit diagnostics showing whether context was considered, used, or rejected.
 
-## Active Risk: LLM Parse Treated As Fact Authority
+## Guarded Risk: LLM Parse Treated As Fact Authority
 
 Problem:
 
 The LLM can understand natural language better than brittle heuristics, but it
 can also invent or overconfidently select unsupported meanings.
 
-Required v0.8.3 behavior:
+Required behavior:
 
 - Keep LLM intent understanding as a core capability.
 - Feed the LLM DB-grounded candidates instead of an open-ended authority role.
@@ -145,7 +147,7 @@ Required v0.8.3 behavior:
 ## Writer Status
 
 Do not file summary/analysis/research missing-writer behavior as a bug unless
-the current route claims to be implemented. At v0.8.2:
+the current route claims to be implemented. At v0.8.3:
 
 - `summary`: future-route writer work.
 - `analysis`: search/investigate foundation exists, final writer not

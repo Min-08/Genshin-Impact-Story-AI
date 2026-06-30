@@ -2,15 +2,15 @@
 
 현재 프로젝트는 웹 서비스가 아니라 개발자용 데이터/검색 코어입니다. 전체 목표 아키텍처는 아래와 같습니다.
 
-## v0.8.2 Direction Alignment
+## v0.8.3 Query Understanding
 
 The current architecture is a developer-facing retrieval core, not a finished
 research assistant product. v0.8 has Source Reader and Evidence Pin workflows;
-v0.8.1 hardened current QA/search behavior; v0.8.2 aligns documentation; v0.8.3
-will add DB-Grounded Query Understanding / Meaning Search.
+v0.8.1 hardened current QA/search behavior; v0.8.2 aligned documentation; and
+v0.8.3 adds DB-Grounded Query Understanding / Meaning Search.
 
-Before v0.9 writer work, the routing architecture should change from direct
-heuristic routing to meaning-first routing:
+Before v0.9 writer work, routing now uses meaning-first diagnostics before
+structured QA execution:
 
 ```text
 query
@@ -94,7 +94,7 @@ Future Layer
 | 엔티티 별칭 DB | 구현 | 자동 별칭 + 수동 개념 seed |
 | 개발자 CLI | 구현 | `route`, `search`, `investigate`, `eval_search_engine` |
 | Query Router | 기본 구현 | `basic_lookup`, `summary`, `analysis`, `research` 휴리스틱 분류 |
-| DB-Grounded Query Understanding | planned v0.8.3 | Candidate Meaning Pack, strong/weak/unsafe matching, LLM adjudication with DB/source validation |
+| DB-Grounded Query Understanding | 구현 | Candidate Meaning Pack, strong/weak/unsafe matching, LLM adjudication with DB/source validation |
 | Evidence Pack | 기본 구현 | `evidence_pack.v0.5` 스키마와 source/group/quality 구조 |
 | Project Amber v2 파이프라인 | 구현 | `pipeline/project_amber_v2.py`에서 readable/canonical/search v2 병행 생성 |
 | 검색 평가셋 | 구현 | 6개 대표 질의 기준 Recall/MRR/Route 평가 |

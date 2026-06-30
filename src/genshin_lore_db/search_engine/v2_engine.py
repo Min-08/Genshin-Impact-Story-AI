@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any
@@ -14,6 +15,24 @@ from genshin_lore_db.search_engine.source_reader import ProjectAmberV2SourceRead
 
 DEFAULT_V2_SEARCH_DB = Path("data") / "processed" / "search_v2" / "project_amber_search.sqlite3"
 V2_SEARCH_ENGINE_VERSION = "project_amber_v2_search.v0.1"
+FALLBACK_SPLIT_RE = re.compile(r"[^0-9A-Za-z\u3040-\u30ff\u3400-\u9fff\uac00-\ud7a3']+")
+CJK_RE = re.compile(r"[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7a3]")
+SEARCH_FALLBACK_STOPWORDS = {
+    "about",
+    "please",
+    "tell",
+    "what",
+    "who",
+    "why",
+    "\ubb50\uc57c",
+    "\uc54c\ub824\uc918",
+    "\uc694\uc57d",
+    "\uc694\uc57d\ud574\uc918",
+    "\uc815\ub9ac",
+    "\uadfc\uac70",
+    "\ucd9c\ucc98",
+    "\uc6d0\ubb38",
+}
 
 
 class ProjectAmberV2SearchEngine:
@@ -67,6 +86,7 @@ class ProjectAmberV2SearchEngine:
             "route": route,
             "engine": self.engine_info(),
             "expansion": expansion,
+            "retrieval": v2_retrieval_summary(hits),
             "results": hits,
             "coverage": v2_coverage_summary(hits),
             "quality": quality_summary(hits),
@@ -132,6 +152,7 @@ class ProjectAmberV2SearchEngine:
             "route": route,
             "engine": self.engine_info(),
             "expansion": expansion,
+            "retrieval": v2_retrieval_summary(hits),
             "results": hits,
             "evidence_groups": evidence_groups,
             "evidence_pack": evidence_pack,
@@ -181,6 +202,16 @@ class ProjectAmberV2SearchEngine:
             mode=mode,
             include_textmap=include_textmap,
         )
+        if not rows:
+            rows = search_rows_with_component_fallback(
+                self.search_db,
+                query,
+                language=language,
+                content_type=content_type,
+                limit=limit,
+                mode=mode,
+                include_textmap=include_textmap,
+            )
         return [normalize_v2_hit(row, expansion=expansion) for row in rows]
 
 
@@ -206,6 +237,15 @@ def build_v2_expansion(query: str) -> dict[str, Any]:
 
 def normalize_v2_hit(row: dict[str, Any], *, expansion: dict[str, Any]) -> dict[str, Any]:
     hit = dict(row)
+    fallback = None
+    if hit.pop("_retrieval_fallback", False):
+        fallback = {
+            "type": hit.pop("_retrieval_fallback_type", "component_terms"),
+            "original_query": hit.pop("_retrieval_fallback_original_query", None),
+            "terms": hit.pop("_retrieval_fallback_terms", []),
+        }
+    hit.pop("_retrieval_fallback_order", None)
+    hit.pop("_retrieval_fallback_match_count", None)
     rank = hit.get("rank")
     hit["score"] = round(-float(rank), 6) if isinstance(rank, (int, float)) else None
     hit["excerpt"] = v2_excerpt(hit.get("text") or "", expansion)
@@ -214,7 +254,116 @@ def normalize_v2_hit(row: dict[str, Any], *, expansion: dict[str, Any]) -> dict[
         hit["category"] = "Project Amber v2"
     elif hit.get("result_type") == "textmap":
         hit["category"] = "TextMap"
-    return normalize_source_result(hit)
+    normalized = normalize_source_result(hit)
+    if fallback:
+        normalized["retrieval_fallback"] = fallback
+    return normalized
+
+
+def search_rows_with_component_fallback(
+    db_path: Path,
+    query: str,
+    *,
+    language: str | None,
+    content_type: str | None,
+    limit: int,
+    mode: str,
+    include_textmap: bool,
+) -> list[dict[str, Any]]:
+    terms = component_fallback_terms(query)
+    cleaned_query = clean_text(query).casefold()
+    if not terms or (len(terms) == 1 and terms[0].casefold() == cleaned_query):
+        return []
+    per_term_rows: list[tuple[str, list[dict[str, Any]]]] = []
+    for term in terms:
+        rows = search_project_amber_v2(
+            db_path,
+            term,
+            language=language,
+            content_type=content_type,
+            limit=max(limit, 1),
+            mode=mode,
+            include_textmap=include_textmap,
+        )
+        if rows:
+            per_term_rows.append((term, rows))
+    if not per_term_rows:
+        return []
+
+    merged: list[dict[str, Any]] = []
+    seen: dict[tuple[str, str], dict[str, Any]] = {}
+    max_rows = max(len(rows) for _, rows in per_term_rows)
+    order = 0
+    for row_index in range(max_rows):
+        for term, rows in per_term_rows:
+            if row_index >= len(rows):
+                continue
+            row = dict(rows[row_index])
+            key = v2_row_key(row)
+            existing = seen.get(key)
+            if existing is not None:
+                fallback_terms = existing.setdefault("_retrieval_fallback_terms", [])
+                if term not in fallback_terms:
+                    fallback_terms.append(term)
+                existing["_retrieval_fallback_match_count"] = len(fallback_terms)
+                continue
+            row["_retrieval_fallback"] = True
+            row["_retrieval_fallback_type"] = "component_terms"
+            row["_retrieval_fallback_original_query"] = query
+            row["_retrieval_fallback_terms"] = [term]
+            row["_retrieval_fallback_match_count"] = 1
+            row["_retrieval_fallback_order"] = order
+            order += 1
+            seen[key] = row
+            merged.append(row)
+            if len(merged) >= limit:
+                return merged
+    return merged[:limit]
+
+
+def component_fallback_terms(query: str, *, max_terms: int = 8) -> list[str]:
+    terms = []
+    seen = set()
+    for token in FALLBACK_SPLIT_RE.split(clean_text(query)):
+        term = token.strip("()[]{}<>\"'`.,;:!?")
+        normalized = term.casefold()
+        if not normalized or normalized in SEARCH_FALLBACK_STOPWORDS or normalized in seen:
+            continue
+        if CJK_RE.search(term):
+            if len(term) < 2:
+                continue
+        elif len(normalized) < 3:
+            continue
+        seen.add(normalized)
+        terms.append(term)
+        if len(terms) >= max_terms:
+            break
+    return terms
+
+
+def v2_row_key(row: dict[str, Any]) -> tuple[str, str]:
+    result_type = str(row.get("result_type") or "")
+    if result_type == "text_unit":
+        identifier = row.get("unit_id") or row.get("id")
+    elif result_type == "textmap":
+        identifier = row.get("textmap_id") or row.get("id")
+    else:
+        identifier = row.get("id") or row.get("unit_id") or row.get("textmap_id")
+    return result_type, str(identifier or "")
+
+
+def v2_retrieval_summary(hits: list[dict[str, Any]]) -> dict[str, Any]:
+    fallback_terms = []
+    for hit in hits:
+        fallback = hit.get("retrieval_fallback") or {}
+        for term in fallback.get("terms") or []:
+            if term not in fallback_terms:
+                fallback_terms.append(term)
+    return {
+        "fallback_used": bool(fallback_terms),
+        "fallback_type": "component_terms" if fallback_terms else None,
+        "fallback_terms": fallback_terms,
+    }
 
 
 def attach_source_windows(hits: list[dict[str, Any]], search_db: Path, *, before: int = 3, after: int = 3) -> None:
@@ -317,6 +466,8 @@ def matched_v2_terms(hit: dict[str, Any], expansion: dict[str, Any]) -> list[dic
     matched = []
     for term in expansion.get("terms") or []:
         normalized = str(term.get("normalized") or "")
+        if len(normalized) < 2:
+            continue
         if normalized and normalized in text:
             matched.append(
                 {

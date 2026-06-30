@@ -1362,8 +1362,8 @@ build_evidence_pack(query: str, hits: list[SearchHit], mode: str) -> EvidencePac
 
 ### 10.1.1 v0.8.2/v0.8.3 Meaning-First Routing Alignment
 
-Before v0.9 writer work, routing should be realigned around
-DB-Grounded Query Understanding. The design target is documented in
+Before v0.9 writer work, routing is realigned around DB-Grounded Query
+Understanding. The design target is documented in
 `docs/DB_GROUNDED_QUERY_UNDERSTANDING.md`.
 
 Current implementation status:
@@ -1374,7 +1374,7 @@ Current implementation status:
 - `summary`, `analysis`, and `research` writers are future-route work and must
   not be described as implemented final answer generators.
 
-Policy changes for the next implementation phase:
+Implemented policy:
 
 1. Build a Candidate Meaning Pack from DB-backed candidates before final route
    selection.

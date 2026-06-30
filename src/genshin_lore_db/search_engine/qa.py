@@ -12,6 +12,11 @@ from genshin_lore_db.search_engine.answer_plan import AnswerPlan, normalize_answ
 from genshin_lore_db.search_engine.aliases import normalize_alias
 from genshin_lore_db.search_engine.conversation import ConversationState, is_source_context
 from genshin_lore_db.search_engine.local_llm import DEFAULT_OLLAMA_MODEL, rewrite_answer_with_ollama
+from genshin_lore_db.search_engine.query_understanding import (
+    blocks_basic_lookup,
+    selected_supported_resolution,
+    understand_query,
+)
 from genshin_lore_db.search_engine.router import is_greeting_query, route_query
 from genshin_lore_db.search_engine.semantic import parse_query_semantics_with_ollama
 
@@ -61,7 +66,7 @@ UNSUPPORTED_ANSWER_TERMS = {
 
 STORY_SUMMARY_TERMS = {"스토리", "줄거리", "마신임무", "임무", "퀘스트", "전설임무", "내용"}
 BRIEF_STYLE_TERMS = {"요약", "간단", "간단히", "짧게", "핵심만"}
-DETAIL_STYLE_TERMS = {"자세히", "전체", "전부", "R1", "R2", "R3", "R4", "R5", "r1", "r2", "r3", "r4", "r5", "제련", "제련별", "수치"}
+DETAIL_STYLE_TERMS = {"자세히", "전체", "전부", "R1", "R2", "R3", "R4", "R5", "r1", "r2", "r3", "r4", "r5", "제련", "재련", "제련별", "재련별", "수치"}
 RAW_STYLE_TERMS = {"원문", "raw", "RAW", "그대로"}
 EVIDENCE_STYLE_TERMS = {"근거", "출처", "source", "evidence"}
 SOURCE_READER_TERMS = set(EVIDENCE_STYLE_TERMS) | set(RAW_STYLE_TERMS)
@@ -69,7 +74,7 @@ GENERIC_LOOKUP_CATEGORY_TERMS = {"성유물", "무기", "캐릭터"}
 LOW_INFORMATION_REMAINDERS = {"", "에", "에대해", "에대해서", "의", "은", "는", "을", "를", "가", "이"}
 ASCENSION_EFFECT_TERMS = {"돌파효과", "돌파 효과"}
 ASCENSION_BONUS_TERMS = {"돌파보너스", "돌파 보너스"}
-INTENT_ONLY_FOLLOWUP_TERMS = set(CONSTELLATION_TERMS) | set(TALENT_TERMS) | {"제련", "C1", "C2", "C3", "C4", "C5", "C6", "c1", "c2", "c3", "c4", "c5", "c6"}
+INTENT_ONLY_FOLLOWUP_TERMS = set(CONSTELLATION_TERMS) | set(TALENT_TERMS) | {"제련", "재련", "제련별", "재련별", "C1", "C2", "C3", "C4", "C5", "C6", "c1", "c2", "c3", "c4", "c5", "c6"}
 FOLLOWUP_FILLER_TERMS = {"더", "좀", "부터", "까지", "보여줘", "알려줘", "해줘", "효과"}
 FOLLOWUP_SUFFIXES = ("으로", "로", "도", "은", "는", "이", "가", "을", "를", "좀")
 
@@ -216,6 +221,7 @@ def answer_question(
         "requested_style": requested_style,
         "answer_plan": route.get("answer_plan"),
         "semantic_parse": route.get("semantic_parse"),
+        "query_understanding": route.get("query_understanding"),
     }
 
 
@@ -232,6 +238,16 @@ def route_answer_query(
     root_path = Path(root).resolve()
     search_db = db_path or root_path / "data" / "processed" / "search_v2" / "project_amber_search.sqlite3"
     context = resolve_conversation_context(query, conversation_state)
+    query_understanding = understand_query(
+        root_path,
+        query,
+        db_path=search_db,
+        language=language,
+        conversation_state=conversation_state,
+        use_llm=use_llm,
+        model=model,
+        conversation_context=context,
+    )
     effective_query = str(context.get("resolved_query") or query)
     rule = route_query(effective_query).to_dict()
     requested_format = requested_format_for_query(query)
@@ -255,6 +271,7 @@ def route_answer_query(
             plan=plan,
             semantic_state=semantic_parse_state("", use_llm=False, model=model),
             context=context,
+            query_understanding=query_understanding,
         )
 
     if contains_unsupported_answer_term(effective_query):
@@ -282,6 +299,7 @@ def route_answer_query(
             plan=plan,
             semantic_state=semantic_parse_state("", use_llm=False, model=model),
             context=context,
+            query_understanding=query_understanding,
         )
 
     if is_context_only_source_followup(query) and context.get("route") != "source_reader":
@@ -292,6 +310,7 @@ def route_answer_query(
             requested_style=requested_style,
             context=context,
             model=model,
+            query_understanding=query_understanding,
         )
 
     if context.get("route") == "source_reader":
@@ -322,6 +341,7 @@ def route_answer_query(
             plan=plan,
             semantic_state=semantic_parse_state("", use_llm=False, model=model),
             context=context,
+            query_understanding=query_understanding,
         )
 
     clarification_reason = lookup_clarification_reason(effective_query)
@@ -333,6 +353,7 @@ def route_answer_query(
             requested_style=requested_style,
             context=context,
             model=model,
+            query_understanding=query_understanding,
         )
 
     has_story_summary = looks_like_story_summary(effective_query)
@@ -340,7 +361,11 @@ def route_answer_query(
         str(signal).startswith("relation:") for signal in rule.get("signals") or []
     )
     allow_exact_lookup = not has_relation_or_research and not has_story_summary
-    resolution = resolve_qa_target(search_db, effective_query, language=language) if allow_exact_lookup else None
+    query_understanding_blocks_lookup = blocks_basic_lookup(query_understanding)
+    selected_resolution = selected_supported_resolution(query_understanding)
+    resolution = selected_resolution if allow_exact_lookup else None
+    if resolution is None and allow_exact_lookup and not query_understanding_blocks_lookup:
+        resolution = resolve_qa_target(search_db, effective_query, language=language)
     intent = classify_lookup_intent(effective_query, resolution)
     if resolution and resolution.get("content_type") == "avatar" and is_ambiguous_avatar_ascension_query(effective_query):
         return clarification_route(
@@ -351,6 +376,7 @@ def route_answer_query(
             context=context,
             model=model,
             resolution=resolution,
+            query_understanding=query_understanding,
         )
     if resolution and not has_relation_or_research:
         route = {
@@ -379,6 +405,7 @@ def route_answer_query(
             context=context,
             resolution=resolution,
             resolved_query=effective_query,
+            query_understanding=query_understanding,
         )
 
     if has_story_summary:
@@ -412,6 +439,7 @@ def route_answer_query(
             resolution=story_resolution,
             resolved_query=effective_query,
             unsupported_reason="route_not_implemented",
+            query_understanding=query_understanding,
         )
 
     semantic_state = semantic_parse_state(effective_query, use_llm=use_llm, model=model)
@@ -431,12 +459,15 @@ def route_answer_query(
             plan=plan,
             semantic_state=semantic_state,
             context=context,
+            query_understanding=query_understanding,
         )
 
     semantic_plan = normalize_answer_plan((semantic_state.get("parse") if isinstance(semantic_state, dict) else None), parser="llm")
     if not has_relation_or_research and semantic_plan and semantic_plan.route in {"basic_lookup", "summary", "analysis", "research"}:
         if semantic_plan.route == "basic_lookup":
-            semantic_resolution = resolve_qa_target(search_db, effective_query, language=language)
+            semantic_resolution = None if query_understanding_blocks_lookup else selected_resolution
+            if semantic_resolution is None and not query_understanding_blocks_lookup:
+                semantic_resolution = resolve_qa_target(search_db, effective_query, language=language)
             if semantic_resolution:
                 semantic_intent = classify_lookup_intent(effective_query, semantic_resolution)
                 route = semantic_route_candidate(semantic_state) or dict(rule)
@@ -451,6 +482,7 @@ def route_answer_query(
                     resolution=semantic_resolution,
                     resolved_query=effective_query,
                     unsupported_reason=semantic_plan.unsupported_reason,
+                    query_understanding=query_understanding,
                 )
             route = dict(rule)
         else:
@@ -466,6 +498,7 @@ def route_answer_query(
                 context=context,
                 resolved_query=effective_query,
                 unsupported_reason=semantic_plan.unsupported_reason,
+                query_understanding=query_understanding,
             )
     else:
         route = dict(rule)
@@ -492,6 +525,7 @@ def route_answer_query(
         context=context,
         resolved_query=effective_query,
         unsupported_reason=fallback_reason,
+        query_understanding=query_understanding,
     )
 
 
@@ -516,6 +550,7 @@ def clarification_route(
     context: dict[str, Any],
     model: str,
     resolution: dict[str, Any] | None = None,
+    query_understanding: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     route = {
         "mode": "unsupported",
@@ -547,6 +582,7 @@ def clarification_route(
         resolution=resolution,
         resolved_query=query,
         unsupported_reason=reason,
+        query_understanding=query_understanding,
     )
 
 
@@ -636,6 +672,7 @@ def finalize_route(
     resolution: dict[str, Any] | None = None,
     resolved_query: str | None = None,
     unsupported_reason: str | None = None,
+    query_understanding: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     route.update(
         {
@@ -659,6 +696,8 @@ def finalize_route(
     if resolution:
         route["entities"] = entities_from_resolution(resolution)
         route["answer_plan"]["entities"] = entities_from_resolution(resolution)
+    if query_understanding is not None:
+        route["query_understanding"] = query_understanding
     return route
 
 
@@ -751,7 +790,11 @@ def detail_level_for_style(style: str) -> str:
 def looks_like_story_summary(query: str) -> bool:
     normalized = normalize_alias(query)
     has_story_scope = any(normalize_alias(term) in normalized for term in STORY_SUMMARY_TERMS)
-    has_summary = any(normalize_alias(term) in normalized for term in BRIEF_STYLE_TERMS) or "알려줘" in normalized
+    has_summary = (
+        any(normalize_alias(term) in normalized for term in BRIEF_STYLE_TERMS)
+        or "줄거리" in normalized
+        or "알려줘" in normalized
+    )
     return has_story_scope and has_summary
 
 
@@ -1657,6 +1700,7 @@ def small_talk_answer(query: str, db_path: Path, *, route: dict[str, Any]) -> di
         "requested_style": route.get("requested_style") or "default",
         "answer_plan": route.get("answer_plan"),
         "semantic_parse": route.get("semantic_parse"),
+        "query_understanding": route.get("query_understanding"),
     }
 
 
@@ -1709,6 +1753,7 @@ def evidence_answer(
         "requested_style": route.get("requested_style") or "evidence",
         "answer_plan": route.get("answer_plan"),
         "semantic_parse": route.get("semantic_parse"),
+        "query_understanding": route.get("query_understanding"),
     }
 
 
@@ -1738,6 +1783,7 @@ def unsupported_answer(query: str, db_path: Path, *, route: dict[str, Any] | Non
         "requested_style": route.get("requested_style") or requested_style_for_query(query),
         "answer_plan": route.get("answer_plan"),
         "semantic_parse": route.get("semantic_parse"),
+        "query_understanding": route.get("query_understanding"),
     }
 
 
@@ -1760,5 +1806,13 @@ def unsupported_message(route: dict[str, Any]) -> str:
         return (
             "캐릭터의 돌파효과는 의미가 모호합니다. 돌파 보너스를 원하면 '돌파 보너스', "
             "운명의 자리를 원하면 '별자리', 스킬/패시브를 원하면 '특성'이라고 써 주세요."
+        )
+    query_understanding = route.get("query_understanding") if isinstance(route.get("query_understanding"), dict) else {}
+    selected = query_understanding.get("selected_candidate") if isinstance(query_understanding, dict) else {}
+    if isinstance(selected, dict) and selected.get("kind") in {"lore_concept", "region_or_story_scope", "quest_or_book_scope"}:
+        return (
+            "지원하는 정답형 QA 대상을 찾지 못했습니다. 현재는 성유물, 무기, 캐릭터 기본정보를 지원합니다. "
+            "해당 질문은 lore/스토리 future-route로 분류되며, v0.9 writer 전에는 search 또는 investigate 명령으로 "
+            "공식 텍스트와 Source Reader 근거를 탐색해 주세요."
         )
     return "지원하는 정답형 QA 대상을 찾지 못했습니다. 현재는 성유물, 무기, 캐릭터 기본정보를 지원합니다."
