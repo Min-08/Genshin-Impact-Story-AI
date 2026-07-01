@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import re
-from collections import Counter, defaultdict
+from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
 from genshin_lore_db.normalize import clean_text
 from genshin_lore_db.pipeline.project_amber_v2 import search_project_amber_v2
-from genshin_lore_db.search_engine.evidence import build_evidence_pack, quality_summary
+from genshin_lore_db.search_engine.evidence import build_evidence_pack, counter_summary, quality_summary
 from genshin_lore_db.search_engine.evidence_store import EvidenceStore
 from genshin_lore_db.search_engine.router import route_query
 from genshin_lore_db.search_engine.source_reader import ProjectAmberV2SourceReader, normalize_source_result
@@ -500,11 +500,11 @@ def v2_excerpt(text: str, expansion: dict[str, Any], *, max_chars: int = 360) ->
 def v2_coverage_summary(hits: list[dict[str, Any]]) -> dict[str, Any]:
     return {
         "results": len(hits),
-        "languages": dict(Counter(hit.get("language") for hit in hits).most_common()),
-        "categories": dict(Counter(hit.get("category") for hit in hits).most_common()),
-        "content_types": dict(Counter(hit.get("content_type") for hit in hits).most_common()),
-        "sources": dict(Counter(hit.get("source") for hit in hits).most_common()),
-        "document_kinds": dict(Counter(hit.get("document_kind") for hit in hits).most_common()),
+        "languages": counter_summary(hit.get("language") for hit in hits),
+        "categories": counter_summary(hit.get("category") for hit in hits),
+        "content_types": counter_summary(hit.get("content_type") for hit in hits),
+        "sources": counter_summary(hit.get("source") for hit in hits),
+        "document_kinds": counter_summary(hit.get("document_kind") for hit in hits),
     }
 
 

@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 from collections import Counter
-from typing import Any
+from typing import Any, Iterable
 
 from genshin_lore_db.io import utc_now
 from genshin_lore_db.normalize import clean_text
 
 
 EVIDENCE_PACK_VERSION = "evidence_pack.v0.5"
+UNKNOWN_SUMMARY_KEY = "unknown"
 
 GROUP_TO_SUPPORT_TYPE = {
     "Direct text units": ("direct", "direct_mentions"),
@@ -163,9 +164,19 @@ def quality_summary(hits: list[dict[str, Any]]) -> dict[str, Any]:
         "duplicate_status_rate": round(duplicate_status_count / total, 4),
         "canonical_repeat_rate": round(repeated_canonical_count / total, 4),
         "low_signal_rate": round(low_signal_count / total, 4),
-        "languages": dict(Counter(hit.get("language") for hit in hits).most_common()),
-        "content_types": dict(Counter(hit.get("content_type") for hit in hits).most_common()),
+        "languages": counter_summary(hit.get("language") for hit in hits),
+        "content_types": counter_summary(hit.get("content_type") for hit in hits),
     }
+
+
+def counter_summary(values: Iterable[Any]) -> dict[str, int]:
+    return dict(Counter(summary_key(value) for value in values).most_common())
+
+
+def summary_key(value: Any) -> str:
+    if value is None or value == "":
+        return UNKNOWN_SUMMARY_KEY
+    return str(value)
 
 
 def result_id(item: dict[str, Any]) -> str:

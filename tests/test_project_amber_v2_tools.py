@@ -407,6 +407,26 @@ def test_project_amber_v2_search_with_window_attaches_source_context(tmp_path: P
     assert hit["source_window"]["window_id"] == "project_amber:quest:1:en:detail:unit:0:window:3:3"
 
 
+def test_project_amber_v2_search_with_textmap_window_serializes_errors(tmp_path: Path) -> None:
+    _, db_path = build_tiny_v2_fixture(tmp_path)
+    engine = ProjectAmberV2SearchEngine(db_path)
+
+    result = engine.search("Irminsul", language="en", limit=10, include_textmap=True, with_window=True)
+
+    json.dumps(result, ensure_ascii=False, sort_keys=True)
+    textmap_hit = next(hit for hit in result["results"] if hit["result_type"] == "textmap")
+    text_unit_hit = next(hit for hit in result["results"] if hit["result_type"] == "text_unit")
+
+    assert result["coverage"]["content_types"]["unknown"] >= 1
+    assert result["coverage"]["document_kinds"]["unknown"] >= 1
+    assert result["quality"]["content_types"]["unknown"] >= 1
+    assert textmap_hit["unit_id"] is None
+    assert textmap_hit["source_window"] is None
+    assert textmap_hit["source_reader"]["code"] == "source_reader_mapping_missing"
+    assert text_unit_hit["unit_id"]
+    assert text_unit_hit["source_window"]["center_unit_id"] == text_unit_hit["unit_id"]
+
+
 def test_project_amber_v2_investigate_preserves_unit_id_in_evidence_pack(tmp_path: Path) -> None:
     _, db_path = build_tiny_v2_fixture(tmp_path)
     engine = ProjectAmberV2SearchEngine(db_path)
@@ -928,6 +948,17 @@ def build_tiny_v2_fixture(tmp_path: Path) -> tuple[Path, Path]:
             "language_label": "Korean",
             "text": "세계수",
             "text_hash": "textmap-hash",
+            "source": "dimbreath_textmap",
+            "source_url": None,
+            "raw_ref": None,
+            "metadata": {},
+        },
+        {
+            "textmap_id": "2",
+            "language": "en",
+            "language_label": "English",
+            "text": "Irminsul",
+            "text_hash": "textmap-en-hash",
             "source": "dimbreath_textmap",
             "source_url": None,
             "raw_ref": None,
