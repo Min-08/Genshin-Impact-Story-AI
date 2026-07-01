@@ -1,7 +1,10 @@
 # Roadmap
 
+Status: canonical current roadmap and version gate.
+
 This is the high-level product roadmap. The execution-level checklist for Codex
-work is `docs/CODEX_EXECUTION_ROADMAP_V0_6_TO_V1_0.md`.
+work is `docs/implementation/CODEX_EXECUTION_ROADMAP_V0_6_TO_V1_0.md`.
+See `docs/README.md` for the full documentation map.
 
 ## Current Position
 
@@ -9,7 +12,7 @@ The project is a developer-facing retrieval and QA core for official Genshin
 Impact lore data. It is not yet an API product, web UI, autonomous research
 agent, or full ChatGPT-like assistant.
 
-Implemented through v0.8:
+Implemented through v0.8.4:
 
 - Project Amber v2 data pipeline and searchable SQLite assets.
 - Deterministic `basic_lookup` QA for supported structured targets.
@@ -18,6 +21,8 @@ Implemented through v0.8:
 - Source Reader CLI for units, windows, sections, documents, and parallel text.
 - Evidence Pin storage and CLI operations.
 - Evidence candidates and pinned evidence in `investigate()` output.
+- DB-Grounded Query Understanding / Meaning Search.
+- v0.8.4 regression cleanup after the v0.8.3 implementation.
 
 Fixed in v0.8.1:
 
@@ -26,10 +31,13 @@ Fixed in v0.8.1:
   entity.
 - Conservative conversation-context inheritance for explicit new topics.
 
-Current documentation phase:
+Current planning status:
 
-- v0.8.4 Regression Cleanup after v0.8.3 implementation.
-- Canonical direction: `docs/DB_GROUNDED_QUERY_UNDERSTANDING.md`.
+- Documentation map / naming cleanup follows v0.8.4 regression cleanup.
+- Next goal: v0.8.5 Claude-Code Lessons Architecture Alignment.
+- v0.8.6 Minimal Runtime + Context Foundation is planned before v0.9.
+- PM-approved direction:
+  `docs/PROJECT_FINAL_VISION_AND_ARCHITECTURE_DIRECTION_REVISED.md`.
 
 ## Product Principle
 
@@ -52,8 +60,12 @@ resolution and Source Reader evidence.
 | v0.8.1 | Active QA/Search Bug Bash | Done | Harden current-scope QA/search behavior and ambiguous routing regressions. |
 | v0.8.2 | Direction/Roadmap Alignment | Done | Align docs around DB-grounded query understanding before implementation. |
 | v0.8.3 | DB-Grounded Query Understanding / Meaning Search | Done | Build Candidate Meaning Pack, strong/weak/unsafe matching, and meaning-first routing. |
-| v0.8.4 | Regression Cleanup | Current | Re-run bug bash and stabilize route/status metadata after v0.8.3. |
-| v0.9 | Summary/Analysis/Research Writer Foundation | Blocked | Start writer work only after v0.8.x stabilization and query understanding complete. |
+| v0.8.4 | Regression Cleanup | Done | Re-run bug bash and stabilize route/status metadata after v0.8.3. |
+| D-Docs | Documentation Map / Naming Cleanup | Done | Clarify canonical docs, planning docs, implementation records, and stale status labels. |
+| v0.8.5 | Claude-Code Lessons Architecture Alignment | Next | Convert approved lessons into architecture contracts without implementing writers. |
+| v0.8.6 | Minimal Runtime + Context Foundation | Planned | Add minimal LLM profile, TurnContext, and PromptPackage contracts before writer work. |
+| Final v0.8.x Audit | Writer Readiness Gate | Planned | Decide whether v0.9 starts with Summary V1 only or Summary + Analysis foundation. |
+| v0.9 | Summary/Analysis/Research Writer Foundation | Blocked | Start writer work only after v0.8.5, v0.8.6, and the final v0.8.x audit. |
 | v1.0 | Research Assistant MVP | Future | API, conversation orchestration, source viewer, workspace memory, and user-facing flow. |
 
 ## v0.8.3 Implemented Scope
@@ -78,6 +90,9 @@ v0.9 must not start until:
 
 - v0.8.3 DB-Grounded Query Understanding is implemented and tested.
 - v0.8.4 regression cleanup is complete.
+- v0.8.5 architecture alignment is complete.
+- v0.8.6 minimal runtime/context foundation is complete.
+- The final v0.8.x audit says writer work can start.
 - Search/investigate remains the current lore exploration path for concepts.
 - Summary/analysis/research routes that lack writers still return conservative
   future-route behavior.

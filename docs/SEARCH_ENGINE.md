@@ -1,5 +1,8 @@
 # 검색엔진
 
+Status: canonical search, investigate, Source Reader, and Evidence workflow
+reference.
+
 현재 검색엔진은 웹 UI가 아니라 개발자용 코어입니다. 목표는 사용자의 자연어 질문을 공식 텍스트 탐색용 질의로 확장하고, 결과를 Evidence Pack으로 묶어 LLM 또는 사람이 검토할 수 있게 만드는 것입니다.
 
 현재 검색엔진 단계는 **v0.8.3**이고, Evidence Pack 스키마는 `evidence_pack.v0.5`를 유지하면서 v0.8 candidate/pinned evidence 필드를 `investigate` 결과에 추가합니다.

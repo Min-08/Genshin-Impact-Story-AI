@@ -1,6 +1,6 @@
 # DB-Grounded Query Understanding
 
-Status: implemented architecture record for v0.8.3.
+Status: canonical implemented architecture record for v0.8.3.
 
 This document defines the query-understanding direction that must be completed
 before v0.9 writer work begins. It is now both a product contract and the

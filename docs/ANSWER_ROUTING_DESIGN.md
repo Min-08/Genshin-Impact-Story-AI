@@ -1,5 +1,9 @@
 # 답변 라우팅 비전/설계
 
+Status: canonical route contract. `basic_lookup` is implemented for supported
+structured QA; `summary`, `analysis`, and `research` remain future writer
+routes until v0.9+ work lands.
+
 이 문서는 자연어 질문을 `basic_lookup`, `summary`, `analysis`, `research` 네 가지 답변 라우트로 분기하고, 각 라우트에서 검색엔진과 AI가 어떤 역할을 맡는지 구체적으로 정의한다.
 
 목표는 단순한 검색 결과 요약기가 아니라, 질문 난이도와 위험도에 따라 검색 깊이, Evidence Pack 구조, AI 권한, validator를 다르게 적용하는 답변 엔진을 만드는 것이다.

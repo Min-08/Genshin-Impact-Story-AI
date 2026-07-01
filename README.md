@@ -4,17 +4,30 @@
 
 목표는 단순한 검색 챗봇이 아닙니다. Project Amber 전체 덤프와 다국어 TextMap을 정규화하고, 한중일영 공식 텍스트를 함께 탐색하면서 인물, 장소, 개념, 모티프, 번역 차이, 반례 후보를 연결하는 연구용 기반 시스템을 만드는 것입니다.
 
-현재 작업 상태는 **v0.8 Evidence Pin 운영화 완료 단계**입니다. 데이터 수집과 정규화, Project Amber v2 SQLite 검색 DB, 기본 Query Router, Evidence Pack v0.5, 정답형 QA, 로컬 Ollama Qwen3 재작성, 검색/정답 평가셋, Source Reader CLI, JSONL evidence pin store가 구축되어 있습니다. `answer`/`chat`은 Project Amber v2 기반 정답형 QA를 사용하고, `search`/`investigate`도 기본값이 v2입니다. v1 검색엔진은 `--db-version v1`로 유지합니다. 벡터 검색, 모티프 인덱스, 그래프 검색, 워크스페이스 메모리, full Source Reader 답변 통합은 아직 개발 전입니다.
+현재 구현 상태는 **v0.8.4 regression cleanup 검증 완료 후 documentation map / naming cleanup 단계**입니다. 데이터 수집과 정규화, Project Amber v2 SQLite 검색 DB, 기본 Query Router, Evidence Pack v0.5, 정답형 QA, 로컬 Ollama Qwen3 재작성, 검색/정답 평가셋, Source Reader CLI, JSONL evidence pin store, DB-Grounded Query Understanding / Meaning Search가 구축되어 있습니다. `answer`/`chat`은 Project Amber v2 기반 정답형 QA를 사용하고, `search`/`investigate`도 기본값이 v2입니다. v1 검색엔진은 `--db-version v1`로 유지합니다.
+
+다음 권장 작업은 **v0.8.5 Claude-Code Lessons Architecture Alignment**입니다. **v0.8.6 Minimal Runtime + Context Foundation**은 v0.9 writer 작업 전에 추가하기로 결정되었습니다. summary/analysis/research writer, 벡터 검색, 모티프 인덱스, 그래프 검색, API backend, 실제 frontend integration, autonomous research loop, workspace memory는 아직 구현 전입니다.
 
 ## 문서
 
-- [프로젝트 비전](docs/PROJECT_VISION.md): 이 프로젝트가 지향하는 최종 형태
-- [시스템 아키텍처](docs/ARCHITECTURE.md): 전체 계층, 현재 구현 상태, 향후 구성
-- [데이터 파이프라인](docs/DATA_PIPELINE.md): 수집, RAW 보존, 정규화, 산출물 구조
-- [검색엔진](docs/SEARCH_ENGINE.md): 현재 검색 코어, 질의 확장, Evidence Pack
-- [답변 라우팅 설계](docs/ANSWER_ROUTING_DESIGN.md): `basic_lookup`, `summary`, `analysis`, `research`별 검색/AI 처리 계약
-- [프로젝트 구조](docs/PROJECT_STRUCTURE.md): 코드, 문서, 데이터 산출물 배치 기준
-- [로드맵](docs/ROADMAP.md): v0.5, v1.0 조건과 개발 순서
+문서 전체 지도는 [docs/README.md](docs/README.md)를 먼저 봅니다.
+
+| 구분 | 문서 | 역할 |
+| --- | --- | --- |
+| Canonical | [로드맵](docs/ROADMAP.md) | 현재 버전 상태와 다음 gate |
+| Canonical | [시스템 아키텍처](docs/ARCHITECTURE.md) | 전체 계층, 현재 구현 상태, 향후 구성 |
+| Canonical | [DB-Grounded Query Understanding](docs/DB_GROUNDED_QUERY_UNDERSTANDING.md) | v0.8.3 query-understanding 계약과 구현 기록 |
+| Canonical | [답변 라우팅 설계](docs/ANSWER_ROUTING_DESIGN.md) | `basic_lookup`, `summary`, `analysis`, `research`별 검색/AI 처리 계약 |
+| Canonical | [검색엔진](docs/SEARCH_ENGINE.md) | 현재 검색 코어, Source Reader, Evidence workflow |
+| Planning | [PM-approved architecture direction](docs/PROJECT_FINAL_VISION_AND_ARCHITECTURE_DIRECTION_REVISED.md) | v0.8.5/v0.8.6/v0.9 순서의 source of truth |
+| Planning | [Claude Code Lessons 적용 계획](docs/CLAUDE_CODE_LESSONS_APPLICATION_PLAN.md) | v0.8.5+ 설계 반영 계획 |
+| Reference | [프로젝트 비전](docs/PROJECT_VISION.md) | 이 프로젝트가 지향하는 최종 형태 |
+| Reference | [데이터 파이프라인](docs/DATA_PIPELINE.md) | 수집, RAW 보존, 정규화, 산출물 구조 |
+| Reference | [프로젝트 구조](docs/PROJECT_STRUCTURE.md) | 코드, 문서, 데이터 산출물 배치 기준 |
+| Implementation record | [Codex execution roadmap](docs/implementation/CODEX_EXECUTION_ROADMAP_V0_6_TO_V1_0.md) | 세부 실행 체크리스트 |
+| Implementation record | [Roadmap v2 implementation notes](docs/implementation/ROADMAP_V2_IMPLEMENTATION_NOTES.md) | 과거 roadmap-v2 상태 기록 |
+
+Implementation record와 planning 문서는 현재 상태를 이해하는 보조 자료입니다. 현재 구현 여부나 다음 gate가 충돌하면 `docs/README.md`, `docs/ROADMAP.md`, `docs/ARCHITECTURE.md`, `docs/SEARCH_ENGINE.md`를 우선합니다.
 
 ## 현재 구현된 것
 

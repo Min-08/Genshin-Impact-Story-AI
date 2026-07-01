@@ -3,7 +3,7 @@
 작성일: 2026-06-29  
 범위: v0.6.x 이후 로드맵 작업을 시작하기 전에, 현재 구현된 `basic_lookup`/route/result 일관성/한국어 출력/평가 커버리지에 직접 영향을 주는 이슈만 선별했다.
 
-이 문서는 `docs/ROADMAP_V2.md`를 반복하지 않는다. 이미 로드맵에 있는 기능 계획은 여기서 "왜 지금 고치지 않았는지"와 "어느 버전에서 다시 봐야 하는지"만 기록한다.
+이 문서는 `docs/implementation/ROADMAP_V2_IMPLEMENTATION_NOTES.md`를 반복하지 않는다. 이미 로드맵에 있는 기능 계획은 여기서 "왜 지금 고치지 않았는지"와 "어느 버전에서 다시 봐야 하는지"만 기록한다.
 
 ## 1. Fixed in this preflight task
 
@@ -67,7 +67,7 @@
 
 - Severity: P1
 - Category: source reader, evidence grounding
-- Affected files: `src/genshin_lore_db/search_engine/qa.py`, `src/genshin_lore_db/search_engine/conversation.py`, `scripts/lore_search_engine.py`, `docs/ROADMAP_V2.md`
+- Affected files: `src/genshin_lore_db/search_engine/qa.py`, `src/genshin_lore_db/search_engine/conversation.py`, `scripts/lore_search_engine.py`, `docs/implementation/ROADMAP_V2_IMPLEMENTATION_NOTES.md`
 - Observed behavior: follow-up `"근거는?"`은 직전 답변의 `raw_ref`, `source_url` metadata를 보여주지만 원문 window, section, span pin은 제공하지 않는다.
 - Why it matters: 분석/연구 답변으로 넘어가면 "근거 있음"과 "원문 일부를 재확인 가능"은 다른 품질 조건이다.
 - Recommended future fix: 검색 hit와 `last_sources`를 Source Reader window API에 연결하고 Evidence Pack에 pinned span을 저장한다.
@@ -78,7 +78,7 @@
 
 - Severity: P2
 - Category: summary route, retrieval planning
-- Affected files: `src/genshin_lore_db/search_engine/qa.py`, `docs/ROADMAP_V2.md`, `config/answer_evaluation_set.json`
+- Affected files: `src/genshin_lore_db/search_engine/qa.py`, `docs/implementation/ROADMAP_V2_IMPLEMENTATION_NOTES.md`, `config/answer_evaluation_set.json`
 - Observed behavior: `"수메르 마신임무 요약해줘"` 같은 질의는 `summary` route로 분류되지만 writer와 scope unit이 없어 unsupported로 끝난다.
 - Why it matters: summary route가 route contract만 있고 실제 범위 확정이 없으면 사용자는 요약 기능이 구현된 것으로 오해할 수 있다.
 - Recommended future fix: 책/퀘스트/캐릭터 스토리별 scope resolver, ordered source units, summary 전용 평가셋을 만든다.
@@ -91,7 +91,7 @@
 
 - Severity: P1
 - Category: analysis writer, claim grounding
-- Affected files: `src/genshin_lore_db/search_engine/qa.py`, `src/genshin_lore_db/search_engine/router.py`, `docs/ROADMAP_V2.md`
+- Affected files: `src/genshin_lore_db/search_engine/qa.py`, `src/genshin_lore_db/search_engine/router.py`, `docs/implementation/ROADMAP_V2_IMPLEMENTATION_NOTES.md`
 - Observed behavior: 관계/분석 질의는 `analysis + route_not_implemented`로 보존되지만, 공식 근거/간접 연결/해석/약점 구조의 답변은 생성하지 않는다.
 - Why it matters: 사용자가 원하는 핵심 기능은 단순 lookup보다 분석 답변인데, 현재는 route 계약만 존재한다.
 - Recommended future fix: claim model, evidence pin, source_level validator, 반례 표시 규칙을 포함한 analysis writer를 구현한다.
@@ -115,7 +115,7 @@
 
 - Severity: P1
 - Category: research route, hypothesis management
-- Affected files: `src/genshin_lore_db/search_engine/qa.py`, `docs/ROADMAP_V2.md`, `docs/research/*`
+- Affected files: `src/genshin_lore_db/search_engine/qa.py`, `docs/implementation/ROADMAP_V2_IMPLEMENTATION_NOTES.md`, `docs/research/*`
 - Observed behavior: `"운명의 베틀 떡밥 정리해줘"` 같은 질의는 `research + route_not_implemented`로 남는다.
 - Why it matters: 프로젝트의 최종 방향은 추측/반례/근거 분리를 돕는 연구 보조 도구지만, 현재는 해당 루프가 없다.
 - Recommended future fix: planner, reader, discovery, counter, synthesizer를 처음에는 역할 함수로 구현하고 hypothesis state와 반례 후보를 분리한다.
@@ -126,7 +126,7 @@
 
 - Severity: P2
 - Category: retrieval depth
-- Affected files: `src/genshin_lore_db/pipeline/*`, `src/genshin_lore_db/search_engine/*`, `docs/ROADMAP.md`, `docs/ROADMAP_V2.md`
+- Affected files: `src/genshin_lore_db/pipeline/*`, `src/genshin_lore_db/search_engine/*`, `docs/ROADMAP.md`, `docs/implementation/ROADMAP_V2_IMPLEMENTATION_NOTES.md`
 - Observed behavior: 현재 검색은 SQLite/FTS, alias, concept seed 중심이다. 벡터 검색, motif index, graph search, translation diff index는 없다.
 - Why it matters: 연구형 질의에서 표면어가 다른 반복 모티프, 번역 차이, 간접 연결, 반례 후보를 놓칠 수 있다.
 - Recommended future fix: FTS 결과를 유지한 채 vector/motif/graph를 보조 retrieval layer로 추가하고 route별 평가셋을 만든다.
@@ -139,7 +139,7 @@
 
 - Severity: P2
 - Category: frontend, product integration
-- Affected files: `web/src/App.jsx`, `web/src/styles.css`, `docs/ROADMAP_V2.md`
+- Affected files: `web/src/App.jsx`, `web/src/styles.css`, `docs/implementation/ROADMAP_V2_IMPLEMENTATION_NOTES.md`
 - Observed behavior: UI는 정적 mock data를 렌더링한다. 검색, 답변, source reader, evidence pack backend와 연결되어 있지 않다.
 - Why it matters: 사용자가 목업을 실제 연구/검색 결과로 오해하면 신뢰도 문제가 생긴다.
 - Recommended future fix: API contract가 안정된 뒤 real search/answer/source endpoints에 연결하고 mock data는 fixture/demo mode로 격리한다.
@@ -185,8 +185,8 @@
 
 - Severity: P3
 - Category: documentation hygiene
-- Affected files: `README.md`, `docs/ROADMAP_V2.md`, `docs/issues/*`, `config/answer_evaluation_set.json`
-- Observed behavior: 문서에는 과거 test count/case count가 남아 있고, 목표 파일에서 언급한 `docs/CODEX_EXECUTION_ROADMAP_V0_6_TO_V1_0.md`는 현재 작업트리에 없다.
+- Affected files: `README.md`, `docs/implementation/ROADMAP_V2_IMPLEMENTATION_NOTES.md`, `docs/issues/*`, `config/answer_evaluation_set.json`
+- Observed behavior: 문서에는 과거 test count/case count가 남아 있고, 실행 로드맵은 현재 `docs/implementation/CODEX_EXECUTION_ROADMAP_V0_6_TO_V1_0.md`에 있다.
 - Why it matters: 검증 상태를 판단할 때 문서와 실제 CI/로컬 결과가 어긋날 수 있다.
 - Recommended future fix: release checklist에서 pytest/eval case count를 자동 생성하거나, 수치가 필요한 문서를 한곳으로 제한한다.
 - Target roadmap version: backlog, each release closeout.

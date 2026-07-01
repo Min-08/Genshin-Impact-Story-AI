@@ -1,5 +1,7 @@
 # 시스템 아키텍처
 
+Status: canonical current architecture.
+
 현재 프로젝트는 웹 서비스가 아니라 개발자용 데이터/검색 코어입니다. 전체 목표 아키텍처는 아래와 같습니다.
 
 ## v0.8.3 Query Understanding
@@ -98,7 +100,7 @@ Future Layer
 | Evidence Pack | 기본 구현 | `evidence_pack.v0.5` 스키마와 source/group/quality 구조 |
 | Project Amber v2 파이프라인 | 구현 | `pipeline/project_amber_v2.py`에서 readable/canonical/search v2 병행 생성 |
 | 검색 평가셋 | 구현 | 6개 대표 질의 기준 Recall/MRR/Route 평가 |
-| LLM 연결 | 부분 | 실제 호출 없이 프롬프트 패키지만 생성 |
+| LLM 연결 | 부분 구현 | 로컬 Ollama Qwen3 rewriter/semantic parser와 fallback은 구현됨. writer용 runtime/profile 계약은 v0.8.5/v0.8.6 대상 |
 | 벡터 검색 | 미구현 | 인터페이스만 준비 |
 | 모티프 인덱스 | 미구현 | 다음 단계 후보 |
 | 그래프 검색 | 미구현 | Discovery Index 이후 구현 |

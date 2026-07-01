@@ -1,17 +1,20 @@
 # CODEX_EXECUTION_ROADMAP_V0_6_TO_V1_0
 
-> **Purpose:** This roadmap is an execution plan for Codex.  
-> It is intentionally separate from `ROADMAP.md`, `ROADMAP_V2.md`, and vision/design documents.  
+Status: implementation record / execution checklist. Current status and gates
+are controlled by `docs/README.md` and `docs/ROADMAP.md`.
+
+> **Purpose:** This roadmap is an execution plan for Codex.
+> It is intentionally separate from `ROADMAP.md`, implementation notes, and vision/design documents.
 > Those documents describe the product vision. This document describes the safest implementation order from the current repository state.
 
-Recommended filename:
+Current filename:
 
 ```text
-docs/CODEX_EXECUTION_ROADMAP_V0_6_TO_V1_0.md
+docs/implementation/CODEX_EXECUTION_ROADMAP_V0_6_TO_V1_0.md
 ```
 
-Do not rename this file to `ROADMAP.md` or `ROADMAP_V2.md`.  
-Those names are reserved for higher-level project roadmap documents.
+Do not rename this file to `ROADMAP.md`.
+That name is reserved for the canonical high-level project roadmap.
 
 ---
 
@@ -1422,7 +1425,7 @@ tests pass
 
 Implement the first version of the story hypothesis engine.
 
-Research V1 is not a truth machine.  
+Research V1 is not a truth machine.
 It is a hypothesis comparison engine.
 
 ---
@@ -2083,7 +2086,7 @@ The system must:
 
 # Recommended Codex Execution Batches
 
-Use these as separate Codex sessions.  
+Use these as separate Codex sessions.
 Do not ask Codex to do multiple major versions at once.
 
 ---

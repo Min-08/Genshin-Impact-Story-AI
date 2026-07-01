@@ -1,5 +1,8 @@
 # 프로젝트 비전
 
+Status: vision document. Current implementation status is controlled by
+`README.md`, `docs/README.md`, `docs/ROADMAP.md`, and `docs/ARCHITECTURE.md`.
+
 이 프로젝트의 목표는 원신 자료 검색기를 만드는 것이 아니라, 공식 텍스트 기반 스토리 연구 AI를 만들기 위한 기반을 구축하는 것입니다.
 
 사용자는 최종적으로 ChatGPT처럼 자연어로 질문합니다.

@@ -1,8 +1,10 @@
 # 프로젝트 구조
 
+Status: reference document for repository layout and generated artifacts.
+
 이 문서는 현재 코드, 데이터 산출물, 문서, 테스트의 기준 배치를 정리합니다. 기준은 `PROJECT_VISION`, `ARCHITECTURE`, `DATA_PIPELINE`, `SEARCH_ENGINE`, `ANSWER_ROUTING_DESIGN`, `ROADMAP`, `docs/research/*`의 현재 결론입니다.
 
-현재 단계는 **v0.8 Evidence Pin 운영화**입니다. 웹 UI, API 서버, tool-calling agent, Conversation Orchestrator는 아직 구현 단계가 아닙니다.
+현재 단계는 **v0.8.4 regression cleanup 검증 완료 후 documentation map / naming cleanup**입니다. 웹 UI, API 서버, tool-calling agent, Conversation Orchestrator는 아직 구현 단계가 아닙니다.
 
 ## 최상위 구조
 
@@ -14,6 +16,7 @@ config/
   search_evaluation_set.json
 
 docs/
+  README.md
   PROJECT_VISION.md
   ARCHITECTURE.md
   DATA_PIPELINE.md
@@ -22,6 +25,7 @@ docs/
   ANSWER_ROUTING_DESIGN.md
   ROADMAP.md
   PROJECT_STRUCTURE.md
+  implementation/
   research/
 
 schemas/

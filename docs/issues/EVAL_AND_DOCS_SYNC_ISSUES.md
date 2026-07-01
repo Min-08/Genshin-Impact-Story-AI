@@ -1,5 +1,8 @@
 # Issue: 평가셋과 문서 상태를 새 대화형 QA 방향에 맞게 정리
 
+Status: historical issue note. Current docs navigation is controlled by
+`docs/README.md`.
+
 작성일: 2026-06-28  
 권장 위치: `docs/issues/EVAL_AND_DOCS_SYNC_ISSUES.md`
 
@@ -19,7 +22,7 @@ v0.6.2~v0.6.4에서 이 문서의 핵심 항목 중 일부는 반영됐다.
 - history 기반 ConversationState 평가 지원
 - weapon default/detail 케이스 분리
 - unsupported guide/meta 요청 route=unsupported로 변경
-- ROADMAP_V2.md 최신화
+- `docs/implementation/ROADMAP_V2_IMPLEMENTATION_NOTES.md` 최신화
 
 남음:
 - semantic/parser/style/context 평가셋의 파일 분리
@@ -274,7 +277,7 @@ docs/PROJECT_STRUCTURE.md
 ```text
 1. ROADMAP.md를 최신 v0.6.x~v1.0 기준으로 교체
 2. 기존 문서를 ROADMAP_LEGACY.md로 이동
-3. 새 문서를 ROADMAP_V2.md로 추가하고 README에서 링크
+3. 새 구현 노트를 `docs/implementation/ROADMAP_V2_IMPLEMENTATION_NOTES.md`로 추가하고 README에서 링크
 ```
 
 ---
@@ -282,12 +285,12 @@ docs/PROJECT_STRUCTURE.md
 ## 10. 완료 기준
 
 ```text
-1. 부분 완료: ROADMAP_V2는 현재 단계에 맞게 갱신됐다. README 전체 동기화는 후속이다.
+1. 부분 완료: ROADMAP_V2 implementation notes는 현재 단계에 맞게 갱신됐다. README 전체 동기화는 후속이다.
 2. 후속: semantic parser 평가셋은 아직 별도 파일로 분리하지 않았다.
 3. 부분 완료: conversation context 평가는 answer_evaluation_set.json의 history 케이스로 지원한다.
 4. 부분 완료: answer style 평가는 answer_evaluation_set.json에서 default/detail/brief/evidence를 검증한다.
 5. 완료: unsupported guide/meta request가 basic_lookup으로 오분류되지 않는다.
-6. 완료: ROADMAP_V2와 docs/issues 문서 기준으로 다음 우선순위를 이해할 수 있다.
+6. 완료: `docs/implementation/ROADMAP_V2_IMPLEMENTATION_NOTES.md`와 docs/issues 문서 기준으로 다음 우선순위를 이해할 수 있다.
 ```
 
 ---

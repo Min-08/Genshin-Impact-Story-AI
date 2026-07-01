@@ -1,12 +1,15 @@
 # Roadmap v2
 
+Status: implementation notes / historical roadmap snapshot. Current status and
+gates are controlled by `docs/README.md` and `docs/ROADMAP.md`.
+
 Updated: 2026-07-01
 
 This document records the current interpretation of the roadmap after v0.8
 Evidence Pin operationalization, v0.8.1 QA/search hardening, and v0.8.3
 DB-Grounded Query Understanding. The canonical execution order is in
-`docs/CODEX_EXECUTION_ROADMAP_V0_6_TO_V1_0.md`; this file summarizes the
-product direction and remaining gaps.
+`docs/implementation/CODEX_EXECUTION_ROADMAP_V0_6_TO_V1_0.md`; this file is
+now an implementation note and historical status snapshot.
 
 ## Current Stage
 
@@ -92,7 +95,7 @@ v0.8.3 - DB-Grounded Query Understanding / Meaning Search:
 
 v0.8.4 - Regression Cleanup:
 
-- Current stabilization pass.
+- Completed stabilization pass.
 - Re-run QA/search bug bash.
 - Expand evaluation cases.
 - Correct route/status metadata.

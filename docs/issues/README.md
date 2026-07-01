@@ -4,15 +4,18 @@ Updated: 2026-07-01
 
 This folder contains issue notes and design follow-ups. Current active ordering
 is governed by `docs/DB_GROUNDED_QUERY_UNDERSTANDING.md` and
-`docs/CODEX_EXECUTION_ROADMAP_V0_6_TO_V1_0.md`.
+`docs/implementation/CODEX_EXECUTION_ROADMAP_V0_6_TO_V1_0.md`.
 
 ## Current Priority Order
 
 1. v0.8.1 Active QA/Search Bug Bash and current-scope hardening - completed.
 2. v0.8.2 Direction/Roadmap Alignment - completed.
 3. v0.8.3 DB-Grounded Query Understanding / Meaning Search - implemented.
-4. v0.8.4 Regression Cleanup - current.
-5. v0.9 Summary/Analysis/Research Writer foundation.
+4. v0.8.4 Regression Cleanup - completed.
+5. Documentation Map / Naming Cleanup - completed.
+6. v0.8.5 Claude-Code Lessons Architecture Alignment - next.
+7. v0.8.6 Minimal Runtime + Context Foundation - planned.
+8. v0.9 Summary/Analysis/Research Writer foundation - blocked until the final v0.8.x audit.
 
 ## Included Notes
 
@@ -27,7 +30,8 @@ is governed by `docs/DB_GROUNDED_QUERY_UNDERSTANDING.md` and
 
 ## Current Gate
 
-Writer work should not start before DB-Grounded Query Understanding is
-implemented and cleaned up. During v0.8.4 cleanup, `summary`, `analysis`, and
+Writer work should not start before DB-Grounded Query Understanding,
+v0.8.5 architecture alignment, v0.8.6 minimal runtime/context foundation, and
+the final v0.8.x audit are complete. Until then, `summary`, `analysis`, and
 `research` should remain conservative future routes unless the specific
 writer/executor is actually implemented.

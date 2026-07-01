@@ -1,5 +1,7 @@
 # 데이터 파이프라인
 
+Status: reference document for data pipeline and generated artifacts.
+
 데이터 파이프라인은 `수집 → RAW 보존 → 사람이 읽는 복사본 생성 → canonical 정규화 → RAG/검색 인덱스 생성` 순서로 구성됩니다.
 
 v0.6부터는 기존 v1 산출물을 유지하면서 Project Amber 전용 v2 산출물을 병행 생성합니다. v2의 메인 소스는 Project Amber이고, TextMap은 보조 검색/번역 테이블로만 포함합니다.
