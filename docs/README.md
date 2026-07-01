@@ -12,11 +12,10 @@ The current implemented core is a developer-facing retrieval and QA system:
 
 - v0.8.3 DB-Grounded Query Understanding is implemented.
 - v0.8.4 regression cleanup has passed local verification.
-- Documentation map / naming cleanup is complete in this docs pass.
-- v0.8.5 Claude-Code Lessons Architecture Alignment is the next recommended
-  goal.
-- v0.8.6 Minimal Runtime + Context Foundation is planned before v0.9 writer
-  work.
+- Documentation map / naming cleanup is complete.
+- v0.8.5 Claude-Code Lessons Architecture Alignment is documented in
+  `docs/design/`.
+- v0.8.6 Minimal Runtime + Context Foundation is the next recommended goal.
 
 Summary, analysis, and research writers are not implemented yet. API, frontend
 integration, vector search, motif graph, autonomous research loop, and
@@ -40,6 +39,20 @@ otherwise.
 | [PROJECT_FINAL_VISION_AND_ARCHITECTURE_DIRECTION_REVISED.md](PROJECT_FINAL_VISION_AND_ARCHITECTURE_DIRECTION_REVISED.md) | PM-approved source of truth for v0.8.5, v0.8.6, and v0.9 sequencing. |
 | [CLAUDE_CODE_LESSONS_APPLICATION_PLAN.md](CLAUDE_CODE_LESSONS_APPLICATION_PLAN.md) | Design input for v0.8.5+ architecture alignment. |
 | [PROJECT_VISION.md](PROJECT_VISION.md) | Long-range product vision. Current roadmap and architecture docs control implementation status. |
+
+## Design / Future Architecture
+
+These documents are architecture contracts and future-stage designs. They are
+not implementation-complete records.
+
+| Document | Role |
+| --- | --- |
+| [design/LLM_RUNTIME_PROFILES.md](design/LLM_RUNTIME_PROFILES.md) | v0.8.6 contract for LLM runtime profiles, role separation, config files, fallback policy, and CLI profile selection. |
+| [design/CONTEXT_ASSEMBLY_DESIGN.md](design/CONTEXT_ASSEMBLY_DESIGN.md) | v0.8.6 contract for TurnContextAssembler, TurnContext, PromptPackage, schemas, debug commands, and writer consumption. |
+| [design/AGENTIC_LOOP_DESIGN.md](design/AGENTIC_LOOP_DESIGN.md) | Future Tool Engine / Agentic Research Loop architecture; deferred beyond v0.9. |
+| [design/RESEARCH_LOOP_DESIGN.md](design/RESEARCH_LOOP_DESIGN.md) | Future research planner, evidence judge, gap analyzer, stop controller, and research loop design. |
+| [design/STREAMING_VISIBLE_THINKING_DESIGN.md](design/STREAMING_VISIBLE_THINKING_DESIGN.md) | Future user-facing progress/status event contract; not private chain-of-thought exposure. |
+| [design/WRITER_FOUNDATION_DESIGN.md](design/WRITER_FOUNDATION_DESIGN.md) | v0.9 writer foundation consumption plan and final v0.8.x audit gate. |
 
 ## Reference Docs
 
@@ -81,7 +94,18 @@ For query-understanding or routing work, read
 [DB_GROUNDED_QUERY_UNDERSTANDING.md](DB_GROUNDED_QUERY_UNDERSTANDING.md) and
 [ANSWER_ROUTING_DESIGN.md](ANSWER_ROUTING_DESIGN.md).
 
-For v0.8.5/v0.8.6 planning, start with
+For v0.8.5 architecture alignment, read
 [PROJECT_FINAL_VISION_AND_ARCHITECTURE_DIRECTION_REVISED.md](PROJECT_FINAL_VISION_AND_ARCHITECTURE_DIRECTION_REVISED.md),
-then use [CLAUDE_CODE_LESSONS_APPLICATION_PLAN.md](CLAUDE_CODE_LESSONS_APPLICATION_PLAN.md)
-as supporting design input.
+then [CLAUDE_CODE_LESSONS_APPLICATION_PLAN.md](CLAUDE_CODE_LESSONS_APPLICATION_PLAN.md),
+then [design/LLM_RUNTIME_PROFILES.md](design/LLM_RUNTIME_PROFILES.md) and
+[design/CONTEXT_ASSEMBLY_DESIGN.md](design/CONTEXT_ASSEMBLY_DESIGN.md).
+
+For v0.8.6 runtime/context implementation, read
+[design/LLM_RUNTIME_PROFILES.md](design/LLM_RUNTIME_PROFILES.md),
+[design/CONTEXT_ASSEMBLY_DESIGN.md](design/CONTEXT_ASSEMBLY_DESIGN.md), and
+[DB_GROUNDED_QUERY_UNDERSTANDING.md](DB_GROUNDED_QUERY_UNDERSTANDING.md).
+
+For future research loop planning, read
+[design/AGENTIC_LOOP_DESIGN.md](design/AGENTIC_LOOP_DESIGN.md),
+[design/RESEARCH_LOOP_DESIGN.md](design/RESEARCH_LOOP_DESIGN.md), and
+[design/STREAMING_VISIBLE_THINKING_DESIGN.md](design/STREAMING_VISIBLE_THINKING_DESIGN.md).

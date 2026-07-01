@@ -4,6 +4,44 @@ Status: canonical current architecture.
 
 현재 프로젝트는 웹 서비스가 아니라 개발자용 데이터/검색 코어입니다. 전체 목표 아키텍처는 아래와 같습니다.
 
+## v0.8.5 / v0.8.6 Architecture Contracts
+
+v0.8.5 is a documentation-first architecture alignment pass. It defines the
+contracts that v0.8.6 should implement before v0.9 writer work:
+
+- LLM runtime profiles:
+  `docs/design/LLM_RUNTIME_PROFILES.md`
+- TurnContextAssembler / PromptPackage:
+  `docs/design/CONTEXT_ASSEMBLY_DESIGN.md`
+- Future Tool Engine / Agentic Loop:
+  `docs/design/AGENTIC_LOOP_DESIGN.md`
+- Future Research Loop:
+  `docs/design/RESEARCH_LOOP_DESIGN.md`
+- Future Streaming / Visible Thinking:
+  `docs/design/STREAMING_VISIBLE_THINKING_DESIGN.md`
+- v0.9 Writer Foundation gate:
+  `docs/design/WRITER_FOUNDATION_DESIGN.md`
+
+v0.8.6 should implement real minimal dataclasses, schemas, loaders, selectors,
+builders, debug commands, and tests for LLM profiles, TurnContext, and
+PromptPackage. It should not implement writers, agent loops, research loops,
+streaming, API/frontend integration, vector search, motif graph, or workspace
+memory.
+
+Planned v0.8.6 boundary:
+
+```text
+query
+-> DB-Grounded Query Understanding
+-> RuntimeProfile selection
+-> TurnContextAssembler
+-> PromptPackageBuilder
+-> debug/validation output
+```
+
+v0.9 writers should consume TurnContext and PromptPackage rather than raw route
+dicts, raw search results, or ad-hoc model settings.
+
 ## v0.8.3 Query Understanding
 
 The current architecture is a developer-facing retrieval core, not a finished
@@ -72,8 +110,13 @@ Reasoning Layer
 - Evidence Pack
 - 반례 후보 그룹
 - LLM 프롬프트 패키지
+- planned v0.8.6 RuntimeProfile / TurnContext / PromptPackage contracts
 
 Future Layer
+- Tool Engine / Execution Plan
+- Research Planner / Evidence Judge
+- Agentic Research Loop
+- Streaming / Visible Thinking Event Contract
 - Vector Search
 - Motif Index
 - Graph Search
@@ -101,6 +144,11 @@ Future Layer
 | Project Amber v2 파이프라인 | 구현 | `pipeline/project_amber_v2.py`에서 readable/canonical/search v2 병행 생성 |
 | 검색 평가셋 | 구현 | 6개 대표 질의 기준 Recall/MRR/Route 평가 |
 | LLM 연결 | 부분 구현 | 로컬 Ollama Qwen3 rewriter/semantic parser와 fallback은 구현됨. writer용 runtime/profile 계약은 v0.8.5/v0.8.6 대상 |
+| LLM Runtime Profiles | 설계 완료 / v0.8.6 예정 | role별 router/reasoner/writer/validator profile 계약은 `docs/design/LLM_RUNTIME_PROFILES.md` 기준 |
+| TurnContext / PromptPackage | 설계 완료 / v0.8.6 예정 | context assembler와 prompt package 계약은 `docs/design/CONTEXT_ASSEMBLY_DESIGN.md` 기준 |
+| Tool Engine / Agent Loop | 미래 단계 | v0.10/v0.12 이후. v0.8.6 범위 아님 |
+| Research Loop | 미래 단계 | v0.11/v0.12 이후. v0.9 전 구현 금지 |
+| Visible Thinking / Streaming | 미래 단계 | 사용자용 진행 상태 event contract. private chain-of-thought 노출 아님 |
 | 벡터 검색 | 미구현 | 인터페이스만 준비 |
 | 모티프 인덱스 | 미구현 | 다음 단계 후보 |
 | 그래프 검색 | 미구현 | Discovery Index 이후 구현 |

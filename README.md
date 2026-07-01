@@ -4,9 +4,9 @@
 
 목표는 단순한 검색 챗봇이 아닙니다. Project Amber 전체 덤프와 다국어 TextMap을 정규화하고, 한중일영 공식 텍스트를 함께 탐색하면서 인물, 장소, 개념, 모티프, 번역 차이, 반례 후보를 연결하는 연구용 기반 시스템을 만드는 것입니다.
 
-현재 구현 상태는 **v0.8.4 regression cleanup 검증 완료 후 documentation map / naming cleanup 단계**입니다. 데이터 수집과 정규화, Project Amber v2 SQLite 검색 DB, 기본 Query Router, Evidence Pack v0.5, 정답형 QA, 로컬 Ollama Qwen3 재작성, 검색/정답 평가셋, Source Reader CLI, JSONL evidence pin store, DB-Grounded Query Understanding / Meaning Search가 구축되어 있습니다. `answer`/`chat`은 Project Amber v2 기반 정답형 QA를 사용하고, `search`/`investigate`도 기본값이 v2입니다. v1 검색엔진은 `--db-version v1`로 유지합니다.
+현재 구현 상태는 **v0.8.5 Claude-Code Lessons Architecture Alignment 문서화 완료 / v0.8.6 준비 단계**입니다. 데이터 수집과 정규화, Project Amber v2 SQLite 검색 DB, 기본 Query Router, Evidence Pack v0.5, 정답형 QA, 로컬 Ollama Qwen3 재작성, 검색/정답 평가셋, Source Reader CLI, JSONL evidence pin store, DB-Grounded Query Understanding / Meaning Search가 구축되어 있습니다. `answer`/`chat`은 Project Amber v2 기반 정답형 QA를 사용하고, `search`/`investigate`도 기본값이 v2입니다. v1 검색엔진은 `--db-version v1`로 유지합니다.
 
-다음 권장 작업은 **v0.8.5 Claude-Code Lessons Architecture Alignment**입니다. **v0.8.6 Minimal Runtime + Context Foundation**은 v0.9 writer 작업 전에 추가하기로 결정되었습니다. summary/analysis/research writer, 벡터 검색, 모티프 인덱스, 그래프 검색, API backend, 실제 frontend integration, autonomous research loop, workspace memory는 아직 구현 전입니다.
+다음 권장 작업은 **v0.8.6 Minimal Runtime + Context Foundation**입니다. v0.8.6은 v0.9 writer 작업 전에 LLM runtime profile, TurnContext, PromptPackage 계약을 최소 구현하는 단계입니다. summary/analysis/research writer, 벡터 검색, 모티프 인덱스, 그래프 검색, API backend, 실제 frontend integration, autonomous research loop, workspace memory는 아직 구현 전입니다.
 
 ## 문서
 
@@ -21,6 +21,12 @@
 | Canonical | [검색엔진](docs/SEARCH_ENGINE.md) | 현재 검색 코어, Source Reader, Evidence workflow |
 | Planning | [PM-approved architecture direction](docs/PROJECT_FINAL_VISION_AND_ARCHITECTURE_DIRECTION_REVISED.md) | v0.8.5/v0.8.6/v0.9 순서의 source of truth |
 | Planning | [Claude Code Lessons 적용 계획](docs/CLAUDE_CODE_LESSONS_APPLICATION_PLAN.md) | v0.8.5+ 설계 반영 계획 |
+| Design | [LLM Runtime Profiles](docs/design/LLM_RUNTIME_PROFILES.md) | v0.8.6 LLM profile/runtime 계약 |
+| Design | [Context Assembly Design](docs/design/CONTEXT_ASSEMBLY_DESIGN.md) | v0.8.6 TurnContext/PromptPackage 계약 |
+| Design | [Agentic Loop Design](docs/design/AGENTIC_LOOP_DESIGN.md) | v0.10+ tool/agent loop future architecture |
+| Design | [Research Loop Design](docs/design/RESEARCH_LOOP_DESIGN.md) | v0.11/v0.12 research loop future architecture |
+| Design | [Streaming / Visible Thinking Design](docs/design/STREAMING_VISIBLE_THINKING_DESIGN.md) | future user-facing progress event contract |
+| Design | [Writer Foundation Design](docs/design/WRITER_FOUNDATION_DESIGN.md) | v0.9 writer gate and consumption plan |
 | Reference | [프로젝트 비전](docs/PROJECT_VISION.md) | 이 프로젝트가 지향하는 최종 형태 |
 | Reference | [데이터 파이프라인](docs/DATA_PIPELINE.md) | 수집, RAW 보존, 정규화, 산출물 구조 |
 | Reference | [프로젝트 구조](docs/PROJECT_STRUCTURE.md) | 코드, 문서, 데이터 산출물 배치 기준 |
@@ -198,13 +204,17 @@ src/genshin_lore_db/
   search_engine/
 
 docs/
+  README.md
   PROJECT_VISION.md
   ARCHITECTURE.md
   DATA_PIPELINE.md
+  DB_GROUNDED_QUERY_UNDERSTANDING.md
   SEARCH_ENGINE.md
   ANSWER_ROUTING_DESIGN.md
   PROJECT_STRUCTURE.md
   ROADMAP.md
+  design/
+  implementation/
   research/
 ```
 

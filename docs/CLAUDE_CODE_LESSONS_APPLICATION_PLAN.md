@@ -756,11 +756,11 @@ Claude Code 대화 덤프에서 합의한 설계 원칙을 프로젝트 docs/roa
 산출물:
 
 ```text
-docs/CONTEXT_ASSEMBLY_DESIGN.md
-docs/LLM_RUNTIME_PROFILES.md
-docs/AGENTIC_LOOP_DESIGN.md
-docs/RESEARCH_LOOP_DESIGN.md
-docs/STREAMING_VISIBLE_THINKING_DESIGN.md
+docs/design/CONTEXT_ASSEMBLY_DESIGN.md
+docs/design/LLM_RUNTIME_PROFILES.md
+docs/design/AGENTIC_LOOP_DESIGN.md
+docs/design/RESEARCH_LOOP_DESIGN.md
+docs/design/STREAMING_VISIBLE_THINKING_DESIGN.md
 ```
 
 단, 이 단계는 주로 문서/계약 단계다.

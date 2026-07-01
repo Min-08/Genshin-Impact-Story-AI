@@ -33,9 +33,10 @@ Fixed in v0.8.1:
 
 Current planning status:
 
-- Documentation map / naming cleanup follows v0.8.4 regression cleanup.
-- Next goal: v0.8.5 Claude-Code Lessons Architecture Alignment.
-- v0.8.6 Minimal Runtime + Context Foundation is planned before v0.9.
+- Documentation map / naming cleanup is complete.
+- v0.8.5 Claude-Code Lessons Architecture Alignment is documented in
+  `docs/design/`.
+- Next goal: v0.8.6 Minimal Runtime + Context Foundation.
 - PM-approved direction:
   `docs/PROJECT_FINAL_VISION_AND_ARCHITECTURE_DIRECTION_REVISED.md`.
 
@@ -62,11 +63,45 @@ resolution and Source Reader evidence.
 | v0.8.3 | DB-Grounded Query Understanding / Meaning Search | Done | Build Candidate Meaning Pack, strong/weak/unsafe matching, and meaning-first routing. |
 | v0.8.4 | Regression Cleanup | Done | Re-run bug bash and stabilize route/status metadata after v0.8.3. |
 | D-Docs | Documentation Map / Naming Cleanup | Done | Clarify canonical docs, planning docs, implementation records, and stale status labels. |
-| v0.8.5 | Claude-Code Lessons Architecture Alignment | Next | Convert approved lessons into architecture contracts without implementing writers. |
-| v0.8.6 | Minimal Runtime + Context Foundation | Planned | Add minimal LLM profile, TurnContext, and PromptPackage contracts before writer work. |
+| v0.8.5 | Claude-Code Lessons Architecture Alignment | Done | Convert approved lessons into architecture contracts without implementing writers. |
+| v0.8.6 | Minimal Runtime + Context Foundation | Next | Add minimal LLM profile, TurnContext, and PromptPackage contracts before writer work. |
 | Final v0.8.x Audit | Writer Readiness Gate | Planned | Decide whether v0.9 starts with Summary V1 only or Summary + Analysis foundation. |
 | v0.9 | Summary/Analysis/Research Writer Foundation | Blocked | Start writer work only after v0.8.5, v0.8.6, and the final v0.8.x audit. |
+| v0.10 | Tool Engine / Execution Plan | Future | Add deterministic tool contracts before agentic loops. |
+| v0.11 | Research Planner / Evidence Judge | Future | Add planner, evidence judge, gap analyzer, and stop controller. |
+| v0.12 | Agentic Research Loop V1 | Future | Add bounded repeated research loop over approved tools. |
+| v0.13 | Streaming / Visible Thinking Event Contract | Future | Add user-facing progress/status events, not private chain-of-thought exposure. |
 | v1.0 | Research Assistant MVP | Future | API, conversation orchestration, source viewer, workspace memory, and user-facing flow. |
+
+## v0.8.5 Architecture Alignment Outputs
+
+v0.8.5 is a documentation-first architecture pass. It does not implement
+runtime features. It defines the contracts v0.8.6 and later stages should
+follow:
+
+- `docs/design/LLM_RUNTIME_PROFILES.md`
+- `docs/design/CONTEXT_ASSEMBLY_DESIGN.md`
+- `docs/design/AGENTIC_LOOP_DESIGN.md`
+- `docs/design/RESEARCH_LOOP_DESIGN.md`
+- `docs/design/STREAMING_VISIBLE_THINKING_DESIGN.md`
+- `docs/design/WRITER_FOUNDATION_DESIGN.md`
+
+## v0.8.6 Planned Scope
+
+v0.8.6 should implement minimal runtime/context foundations:
+
+- LLM profile config files and loader.
+- Runtime profile / provider config / runtime selector objects.
+- TurnContext dataclass/schema.
+- PromptPackage builder.
+- Context assembler and policy blocks.
+- Debug commands for context and prompt package inspection.
+- Tests for profile loading, fallback, schema validation, context inheritance,
+  and future-route policy.
+
+v0.8.6 should not implement summary/analysis/research writers, agent loop,
+research loop, streaming UI, API/backend integration, vector search, motif
+graph, or workspace memory.
 
 ## v0.8.3 Implemented Scope
 
@@ -97,6 +132,8 @@ v0.9 must not start until:
 - Summary/analysis/research routes that lack writers still return conservative
   future-route behavior.
 - Documentation no longer claims planned writers are implemented.
+- v0.8.5 design docs remain consistent with the implementation scope selected
+  for v0.8.6.
 
 ## Deferred Work
 
@@ -109,4 +146,6 @@ understanding path is stable:
   current source-readable search path.
 - API backend and web/frontend product integration.
 - Autonomous multi-agent research loop.
+- Tool Engine, Research Planner, Evidence Judge, Stop Controller, and visible
+  progress event streaming until their staged versions.
 - Long-term workspace memory product.
